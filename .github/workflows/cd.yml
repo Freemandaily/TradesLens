@@ -9,16 +9,22 @@ on:
       - ".github/workflows/cd.yml"
 
   schedule:
-    - cron: "0 * * * *" # every hour
+    - cron: "0 * * * *"
 
 jobs:
   dbt-cd:
-    name: dbt run production
     runs-on: ubuntu-latest
 
     defaults:
       run:
         working-directory: Dex-model
+
+    env:
+      DBT_PG_HOST: ${{ secrets.DBT_PG_HOST }}
+      DBT_PG_PORT: ${{ secrets.DBT_PG_PORT }}
+      DBT_PG_USER: ${{ secrets.DBT_PG_USER }}
+      DBT_PG_PASSWORD: ${{ secrets.DBT_PG_PASSWORD }}
+      DBT_PG_DATABASE: ${{ secrets.DBT_PG_DATABASE }}
 
     steps:
       - name: Checkout
@@ -42,11 +48,11 @@ jobs:
             outputs:
               prod:
                 type: postgres
-                host: "${{ secrets.DBT_PG_HOST }}"
-                port: 32570
-                user: "${{ secrets.DBT_PG_USER }}"
-                password: "${{ secrets.DBT_PG_PASSWORD }}"
-                dbname: "${{ secrets.DBT_PG_DATABASE }}"
+                host: "$DBT_PG_HOST"
+                port: $DBT_PG_PORT
+                user: "$DBT_PG_USER"
+                password: "$DBT_PG_PASSWORD"
+                dbname: "$DBT_PG_DATABASE"
                 schema: envio
                 threads: 4
           EOF
@@ -59,10 +65,3 @@ jobs:
 
       - name: dbt run
         run: dbt run --target prod
-
-      - name: dbt docs generate
-        run: dbt docs generate --target prod
-
-      - name: Notify on failure
-        if: failure()
-        run: echo "dbt CD failed  check logs in GitHub Actions"
