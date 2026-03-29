@@ -33,6 +33,11 @@ jobs:
         run: pip install dbt-postgres dbt-core
 
       - name: Create profiles.yml
+        env:
+          DBT_PG_HOST: ${{ secrets.DBT_PG_HOST }}
+          DBT_PG_USER: ${{ secrets.DBT_PG_USER }}
+          DBT_PG_PASSWORD: ${{ secrets.DBT_PG_PASSWORD }}
+          DBT_PG_DATABASE: ${{ secrets.DBT_PG_DATABASE }}
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << EOF
@@ -41,11 +46,11 @@ jobs:
             outputs:
               ci:
                 type: postgres
-                host: "${{ secrets.DBT_PG_HOST }}"
+                host: "${DBT_PG_HOST}"
                 port: 32570
-                user: "${{ secrets.DBT_PG_USER }}"
-                password: "${{ secrets.DBT_PG_PASSWORD }}"
-                dbname: "${{ secrets.DBT_PG_DATABASE }}"
+                user: "${DBT_PG_USER}"
+                password: "${DBT_PG_PASSWORD}"
+                dbname: "${DBT_PG_DATABASE}"
                 schema: envio_ci
                 threads: 4
                 sslmode: require
