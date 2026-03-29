@@ -1,0 +1,114 @@
+version: 2
+
+models:
+  - name: stg_dex_swaps
+    description: "Staged swap events from Uniswap V3 pools, normalized and joined with pool metadata."
+    columns:
+      - name: id
+        description: "Unique swap identifier (txHash-logIndex)"
+        data_tests:
+          - not_null
+          - unique
+
+      - name: swap_timestamp
+        description: "Block timestamp of the swap converted to timestamp format"
+        data_tests:
+          - not_null
+
+      - name: timestamp
+        description: "Raw block timestamp of the swap"
+        data_tests:
+          - not_null
+
+      - name: tx_hash
+        description: "Transaction hash of the swap"
+        data_tests:
+          - not_null
+
+      - name: block_number
+        description: "Block number the swap was included in"
+        data_tests:
+          - not_null
+
+      - name: dex
+        description: "DEX identifier (e.g., uniswap-v3)"
+        data_tests:
+          - not_null
+
+      - name: pool_id
+        description: "Foreign key to the pool table"
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: source('dexSwap_v3', 'Pool')
+                field: id
+
+      - name: from_address
+        description: "Transaction sender address"
+        data_tests:
+          - not_null
+
+      - name: gas
+        description: "Gas consumed by the transaction"
+
+      - name: sender
+        description: "Address that initiated the swap (event parameter)"
+        data_tests:
+          - not_null
+
+      - name: recipient
+        description: "Address that received the swap output (event parameter)"
+        data_tests:
+          - not_null
+
+      - name: amount0
+        description: "Raw amount of token0 (numeric)"
+        data_tests:
+          - not_null
+
+      - name: amount0_actual
+        description: "Amount of token0 adjusted for decimals"
+        data_tests:
+          - not_null
+
+      - name: amount1
+        description: "Raw amount of token1 (numeric)"
+        data_tests:
+          - not_null
+
+      - name: amount1_actual
+        description: "Amount of token1 adjusted for decimals"
+        data_tests:
+          - not_null
+
+      - name: token0_symbol
+        description: "Symbol of token0"
+        data_tests:
+          - not_null
+
+      - name: token0_name
+        description: "Full name of token0"
+        data_tests:
+          - not_null
+
+      - name: token1_symbol
+        description: "Symbol of token1"
+        data_tests:
+          - not_null
+
+      - name: token1_name
+        description: "Full name of token1"
+        data_tests:
+          - not_null
+
+      - name: sqrtPriceX96
+        quote: true
+        description: "Square root price after swap in Q64.96 format"
+        data_tests:
+          - not_null
+
+      - name: tick
+        description: "Current tick after the swap"
+        data_tests:
+          - not_null

@@ -72,10 +72,10 @@ sources:
             data_tests:
               - not_null
               - accepted_values:
-                  arguments:
-                    values: [100, 500, 3000, 10000]
+                  values: [1, 100, 500, 3000, 10000]
 
           - name: createdAt
+            quote: true
             description: "Block timestamp when pool was created"
             data_type: numeric
             data_tests:
@@ -133,6 +133,7 @@ sources:
               - not_null
 
           - name: sqrtPriceX96
+            quote: true
             description: "Square root price after swap in Q64.96 format"
             data_type: numeric
             data_tests:
@@ -145,12 +146,14 @@ sources:
               - not_null
 
           - name: txHash
+            quote: true
             description: "Transaction hash of the swap"
             data_type: text
             data_tests:
               - not_null
 
           - name: blockNumber
+            quote: true
             description: "Block number the swap was included in"
             data_type: numeric
             data_tests:
