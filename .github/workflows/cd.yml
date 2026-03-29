@@ -7,27 +7,21 @@ on:
     paths:
       - "Dex-model/**"
       - ".github/workflows/cd.yml"
-  schedule:
-    - cron: "0 * * * *"
 
 jobs:
   dbt-cd:
+    name: dbt deploy to production
     runs-on: ubuntu-latest
 
     defaults:
       run:
         working-directory: Dex-model
 
-    env:
-      DBT_PG_HOST: ${{ secrets.DBT_PG_HOST }}
-      DBT_PG_PORT: ${{ secrets.DBT_PG_PORT }}
-      DBT_PG_USER: ${{ secrets.DBT_PG_USER }}
-      DBT_PG_PASSWORD: ${{ secrets.DBT_PG_PASSWORD }}
-      DBT_PG_DATABASE: ${{ secrets.DBT_PG_DATABASE }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -38,15 +32,52 @@ jobs:
       - name: Install dbt
         run: pip install dbt-postgres dbt-core
 
+      - name: Create profiles.yml
+        env:
+          DBT_PG_HOST: ${{ secrets.DBT_PG_HOST }}
+          DBT_PG_USER: ${{ secrets.DBT_PG_USER }}
+          DBT_PG_PASSWORD: ${{ secrets.DBT_PG_PASSWORD }}
+          DBT_PG_DATABASE: ${{ secrets.DBT_PG_DATABASE }}
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << EOF
+          Dex:
+            target: prod
+            outputs:
+              prod:
+                type: postgres
+                host: "${DBT_PG_HOST}"
+                port: 32570
+                user: "${DBT_PG_USER}"
+                password: "${DBT_PG_PASSWORD}"
+                dbname: "${DBT_PG_DATABASE}"
+                schema: envio_prod
+                threads: 4
+                sslmode: require
+          EOF
+
+      - name: Debug secrets presence
+        run: |
+          echo "Host is set: ${{ secrets.DBT_PG_HOST != '' }}"
+          echo "User is set: ${{ secrets.DBT_PG_USER != '' }}"
+          echo "Password is set: ${{ secrets.DBT_PG_PASSWORD != '' }}"
+          echo "DB is set: ${{ secrets.DBT_PG_DATABASE != '' }}"
+
       - name: Install dbt packages
         run: dbt deps
 
-      - name: dbt debug
-        run: dbt debug --target prod
+      - name: dbt compile
+        run: dbt compile --target prod
 
       - name: dbt run
-        run: dbt run --target prod
+        run: dbt run --target prod --full-refresh
+
+      - name: dbt test
+        run: dbt test --target prod
 
       - name: Notify on failure
         if: failure()
-        run: echo "dbt CD failed —-- check logs"
+        run: |
+          echo "❌ dbt CD pipeline failed on branch main at $(date -u)"
+          echo "Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.actor }}"
