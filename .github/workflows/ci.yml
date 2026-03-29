@@ -42,7 +42,7 @@ jobs:
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml << EOF
           Dex:
-            target: ci
+            target: prod
             outputs:
               ci:
                 type: postgres
