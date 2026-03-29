@@ -7,7 +7,6 @@ on:
     paths:
       - "Dex-model/**"
       - ".github/workflows/cd.yml"
-
   schedule:
     - cron: "0 * * * *"
 
@@ -39,29 +38,15 @@ jobs:
       - name: Install dbt
         run: pip install dbt-postgres dbt-core
 
-      - name: Create profiles.yml
-        run: |
-          mkdir -p ~/.dbt
-          cat > ~/.dbt/profiles.yml << EOF
-          Dex:
-            target: prod
-            outputs:
-              prod:
-                type: postgres
-                host: "$DBT_PG_HOST"
-                port: "$DBT_PG_PORT"
-                user: "$DBT_PG_USER"
-                password: "$DBT_PG_PASSWORD"
-                dbname: "$DBT_PG_DATABASE"
-                schema: envio
-                threads: 4
-          EOF
-
-      - name: Debug profiles.yml
-        run: cat ~/.dbt/profiles.yml
-
       - name: Install dbt packages
         run: dbt deps
 
+      - name: dbt debug
+        run: dbt debug --target prod
+
       - name: dbt run
         run: dbt run --target prod
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "dbt CD failed — check logs"
