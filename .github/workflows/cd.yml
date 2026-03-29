@@ -65,4 +65,4 @@ jobs:
 
       - name: Notify on failure
         if: failure()
-        run: echo "dbt CD failed — check logs in GitHub Actions"
+        run: echo "dbt CD failed  check logs in GitHub Actions"
