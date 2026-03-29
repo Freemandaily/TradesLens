@@ -44,7 +44,7 @@ jobs:
           Dex:
             target: prod
             outputs:
-              ci:
+              prod:
                 type: postgres
                 host: "${DBT_PG_HOST}"
                 port: 32570
@@ -55,8 +55,6 @@ jobs:
                 threads: 4
                 sslmode: require
           EOF
-      - name: Debug profiles.yml
-        run: cat ~/.dbt/profiles.yml
 
       - name: Install dbt packages
         run: dbt deps
