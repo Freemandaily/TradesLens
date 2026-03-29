@@ -1,0 +1,70 @@
+name: dbt CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "Dex-model/**"
+      - ".github/workflows/ci.yml"
+
+jobs:
+  dbt-ci:
+    name: dbt compile and test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: Dex-model
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dbt
+        run: pip install dbt-postgres dbt-core
+
+      - name: Create profiles.yml
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << EOF
+          Dex_model:
+            target: ci
+            outputs:
+              ci:
+                type: postgres
+                host: ${{ secrets.DBT_PG_HOST }}
+                port: ${{ secrets.DBT_PG_PORT }}
+                user: ${{ secrets.DBT_PG_USER }}
+                password: ${{ secrets.DBT_PG_PASSWORD }}
+                dbname: ${{ secrets.DBT_PG_DATABASE }}
+                schema: envio_ci
+                threads: 4
+                sslmode: require
+          EOF
+
+      - name: Install dbt packages
+        run: dbt deps
+
+      - name: dbt compile
+        run: dbt compile --target ci
+
+      - name: dbt run all models
+        run: dbt run --target ci
+
+      - name: Drop CI schema after run
+        run: |
+          PGPASSWORD=${{ secrets.DBT_PG_PASSWORD }} psql \
+            -h ${{ secrets.DBT_PG_HOST }} \
+            -p ${{ secrets.DBT_PG_PORT }} \
+            -U ${{ secrets.DBT_PG_USER }} \
+            -d ${{ secrets.DBT_PG_DATABASE }} \
+            -c "DROP SCHEMA IF EXISTS envio_ci CASCADE;"

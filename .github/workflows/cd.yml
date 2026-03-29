@@ -1,0 +1,66 @@
+name: dbt CD
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Dex-model/**"
+      - ".github/workflows/cd.yml"
+
+  schedule:
+    - cron: "0 * * * *" # every hour
+
+jobs:
+  dbt-cd:
+    name: dbt run production
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: Dex-model
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dbt
+        run: pip install dbt-postgres dbt-core
+
+      - name: Create profiles.yml
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << EOF
+          Dex_model:
+            target: prod
+            outputs:
+              prod:
+                type: postgres
+                host: ${{ secrets.DBT_PG_HOST }}
+                port: ${{ secrets.DBT_PG_PORT }}
+                user: ${{ secrets.DBT_PG_USER }}
+                password: ${{ secrets.DBT_PG_PASSWORD }}
+                dbname: ${{ secrets.DBT_PG_DATABASE }}
+                schema: envio
+                threads: 4
+                sslmode: require
+          EOF
+
+      - name: Install dbt packages
+        run: dbt deps
+
+      - name: dbt run
+        run: dbt run --target prod
+
+      - name: dbt docs generate
+        run: dbt docs generate --target prod
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "dbt CD failed — check logs in GitHub Actions"
