@@ -64,6 +64,9 @@ jobs:
       - name: dbt compile
         run: dbt compile --target ci
 
+      - name: dbt test
+        run: dbt test --target ci
+
       - name: dbt run all models
         run: dbt run --target ci
 
