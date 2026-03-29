@@ -49,7 +49,7 @@ jobs:
               prod:
                 type: postgres
                 host: "$DBT_PG_HOST"
-                port: 32570
+                port: "$DBT_PG_PORT"
                 user: "$DBT_PG_USER"
                 password: "$DBT_PG_PASSWORD"
                 dbname: "$DBT_PG_DATABASE"
