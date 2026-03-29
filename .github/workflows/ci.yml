@@ -50,6 +50,8 @@ jobs:
                 threads: 4
                 sslmode: require
           EOF
+      - name: Debug profiles.yml
+        run: cat ~/.dbt/profiles.yml
 
       - name: Install dbt packages
         run: dbt deps
