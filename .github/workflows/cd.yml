@@ -25,7 +25,7 @@ jobs:
           DBT_PG_PASSWORD: ${{ secrets.DBT_PG_PASSWORD }}
           DBT_PG_DATABASE: ${{ secrets.DBT_PG_DATABASE }}
         run: |
-          echo "HOST: ${DBT_PG_HOST}"
+          echo "HOST:${DBT_PG_HOST}"
           echo "USER: ${DBT_PG_USER}"
           echo "PASSWORD: ${DBT_PG_PASSWORD}"
           echo "DATABASE: ${DBT_PG_DATABASE}"
