@@ -1,0 +1,107 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+name: multi_dex_v3
+rollback_on_reorg: true
+unordered_multichain_mode: true
+preload_handlers: true
+address_format: lowercase
+raw_events: false
+save_full_history: false
+contracts:
+  # ── UniswapV3 ───────────────────────────────────────────────────────────────
+  - name: UniswapV3Factory
+    handler: src/handlers/factory.ts
+    events:
+      - event: PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)
+
+  - name: UniswapV3Pool
+    handler: src/handlers/pool.ts
+    events:
+      - event: Initialize(uint160 sqrtPriceX96, int24 tick)
+      - event: Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)
+        field_selection:
+          transaction_fields:
+            - hash
+            - gasPrice
+            - from
+
+  # ── SolidlyV3 ───────────────────────────────────────────────────────────────
+  - name: SolidlyV3Factory
+    handler: src/handlers/factory.ts
+    abi_file_path: abis/UniswapV3Factory.json
+    events:
+      - event: PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)
+
+  - name: SolidlyV3Pool
+    handler: src/handlers/pool.ts
+    abi_file_path: abis/UniswapV3Pool.json
+    events:
+      - event: Initialize(uint160 sqrtPriceX96, int24 tick)
+      - event: Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)
+        field_selection:
+          transaction_fields:
+            - hash
+            - gasPrice
+            - from
+
+  # ── SushiV3 ─────────────────────────────────────────────────────────────────
+  - name: SushiV3Factory
+    handler: src/handlers/factory.ts
+    abi_file_path: abis/UniswapV3Factory.json
+    events:
+      - event: PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)
+
+  - name: SushiV3Pool
+    handler: src/handlers/pool.ts
+    abi_file_path: abis/UniswapV3Pool.json
+    events:
+      - event: Initialize(uint160 sqrtPriceX96, int24 tick)
+      - event: Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)
+        field_selection:
+          transaction_fields:
+            - hash
+            - gasPrice
+            - from
+
+networks:
+  # ── Ethereum Mainnet ────────────────────────────────────────────────────────
+  - id: 1
+    start_block: 22173891
+    contracts:
+      - name: UniswapV3Factory
+        address: "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+      - name: UniswapV3Pool
+        address:
+          - "0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8" # USDC/WETH 0.3%
+      - name: SolidlyV3Factory
+        address: "0x777de5Fe8117cAAA7B44f396E93a401Cf5c9D4d6"
+      - name: SolidlyV3Pool
+      - name: SushiV3Factory
+        address: "0xbaceb8ec6b9355dfc0269c18bac9d6e2bdc29c4f"
+      - name: SushiV3Pool
+
+  # 414412368 ── Arbitrum One ────────────────────────────────────────────────────────────
+  - id: 42161
+    start_block: 321795348
+    contracts:
+      - name: UniswapV3Factory
+        address: "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+      - name: UniswapV3Pool
+        address:
+          - "0x17c14d2c404d167802b16c450d3c99f88f2c4f4d" # WETH/USDC.e 0.3%
+      - name: SushiV3Factory
+        address: "0x1af415a1eba07a4986a52b6f2e7de7003d82231e"
+      - name: SushiV3Pool
+
+  # 145537734
+  # ── Optimism ────────────────────────────────────────────────────────────────
+  - id: 10
+    start_block: 133954853
+    contracts:
+      - name: UniswapV3Factory
+        address: "0x1F98431c8aD98523631AE4a59f267346ea31F984"
+      - name: UniswapV3Pool
+        address:
+          - "0x03af20bdaaffb4cc0a521796a223f7d85e2aac31" # WETH/USDC.e 0.3%
+      - name: SushiV3Factory
+        address: "0x9c6522117e2ed1fe5bdb72bb0ed5e3f2bde7dbe0"
+      - name: SushiV3Pool

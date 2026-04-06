@@ -1,0 +1,107 @@
+# ─────────────────────────────────────────────
+# ETH/native price anchor — one per chainId
+# ─────────────────────────────────────────────
+type Bundle {
+  id: ID!
+  ethPriceUSD: BigDecimal!
+}
+
+# ─────────────────────────────────────────────
+# Token
+# ─────────────────────────────────────────────
+type Token {
+  # "<chainId>-<tokenAddress>"
+  id: ID!
+  symbol: String!
+  name: String!
+  decimals: BigInt! @config(precision: 78) @index
+  isWhitelisted: Boolean! @index
+  volume: BigDecimal!
+  volumeUSD: BigDecimal!
+  untrackedVolumeUSD: BigDecimal!
+  feesUSD: BigDecimal!
+  txCount: BigInt!
+  poolCount: BigInt! @index
+  totalValueLocked: BigDecimal!
+  totalValueLockedUSD: BigDecimal!
+  totalValueLockedUSDUntracked: BigDecimal!
+  # price relative to native token
+  derivedETH: BigDecimal!
+  # pool ids (chainId-address) this token is whitelisted in
+  whitelistPools: [String!]!
+}
+
+# ─────────────────────────────────────────────
+# Pool
+# ─────────────────────────────────────────────
+type Pool {
+  # "<chainId>-<poolAddress>"
+  id: ID!
+  dex: String! @index
+  createdAtTimestamp: BigInt! @index
+  createdAtBlockNumber: BigInt! @index
+  token0: Token! @index
+  token1: Token! @index
+  feeTier: BigInt! @index
+  liquidity: BigInt!
+  sqrtPrice: BigInt!
+  token0Price: BigDecimal!
+  token1Price: BigDecimal!
+  tick: BigInt
+  observationIndex: BigInt!
+  volumeToken0: BigDecimal!
+  volumeToken1: BigDecimal!
+  volumeUSD: BigDecimal!
+  untrackedVolumeUSD: BigDecimal!
+  feesUSD: BigDecimal!
+  txCount: BigInt!
+  collectedFeesToken0: BigDecimal!
+  collectedFeesToken1: BigDecimal!
+  collectedFeesUSD: BigDecimal!
+  totalValueLockedToken0: BigDecimal!
+  totalValueLockedToken1: BigDecimal!
+  totalValueLockedETH: BigDecimal!
+  totalValueLockedUSD: BigDecimal!
+  totalValueLockedUSDUntracked: BigDecimal!
+  liquidityProviderCount: BigInt!
+  swaps: [Swap!]! @derivedFrom(field: "pool")
+}
+
+# ─────────────────────────────────────────────
+# Transaction
+# ─────────────────────────────────────────────
+type Transaction {
+  id: ID!
+  blockNumber: BigInt! @index
+  timestamp: BigInt! @index
+  gasUsed: BigInt!
+  gasPrice: BigInt!
+  swaps: [Swap!]! @derivedFrom(field: "transaction")
+}
+
+# ─────────────────────────────────────────────
+# Swap
+# ─────────────────────────────────────────────
+type Swap {
+  # "<txHash>-<logIndex>"
+  id: ID!
+  dex: String! @index
+  transaction: Transaction!
+  timestamp: BigInt! @index
+  pool: Pool! @index
+  token0: Token! @index
+  token1: Token! @index
+  sender: Bytes! @index
+  recipient: Bytes! @index
+  origin: Bytes! @index
+  amount0: BigDecimal!
+  amount1: BigDecimal!
+  # USD value of the swap
+  amountUSD: BigDecimal!
+  sqrtPriceX96: BigInt!
+  tick: BigInt! @index
+  logIndex: BigInt
+  # gas metadata
+  gasPrice: BigInt
+  gasUsed: BigInt
+}
