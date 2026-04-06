@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: fct_dex_swaps
+    description: "The primary fact table for all DEX trades across Ethereum, Arbitrum, and Optimism. Unions Uniswap V3, SushiSwap V3, and Solidly V3 data."
+    columns:
+      - name: id
+        description: "Unique swap identifier from Envio (txHash-logIndex)"
+        data_tests:
+          - unique
+          - not_null
+      - name: swap_timestamp
+        description: "Date and time of the swap"
+      - name: tx_hash
+        description: "Transaction hash of the swap"
+      - name: dex
+        description: "DEX identifier (e.g. uniswap-v3)"
+      - name: chain_name
+        description: "Network name (Ethereum, Arbitrum, Optimism)"
+      - name: token_bought_symbol
+        description: "Symbol of the token being bought"
+      - name: token_sold_symbol
+        description: "Symbol of the token being sold"
+      - name: amountUSD
+        description: "The USD value of the trade as estimated by the indexer"

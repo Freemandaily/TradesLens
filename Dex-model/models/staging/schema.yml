@@ -8,7 +8,6 @@ models:
         description: "Unique swap identifier (txHash-logIndex)"
         data_tests:
           - not_null
-          - unique
 
       - name: swap_timestamp
         description: "Block timestamp of the swap converted to timestamp format"
@@ -25,31 +24,18 @@ models:
         data_tests:
           - not_null
 
-      - name: block_number
-        description: "Block number the swap was included in"
-        data_tests:
-          - not_null
-
       - name: dex
         description: "DEX identifier (e.g., uniswap-v3)"
         data_tests:
           - not_null
 
-      - name: pool_id
-        description: "Foreign key to the pool table"
-        data_tests:
-          - not_null
-          - relationships:
-              arguments:
-                to: source('dexSwap_v3', 'Pool')
-                field: id
-
-      - name: from_address
-        description: "Transaction sender address"
+      - name: pool
+        description: "pool address "
         data_tests:
           - not_null
 
-      - name: gas
+      - name: gasPrice
+        quote: true
         description: "Gas consumed by the transaction"
 
       - name: sender
@@ -67,18 +53,8 @@ models:
         data_tests:
           - not_null
 
-      - name: amount0_actual
-        description: "Amount of token0 adjusted for decimals"
-        data_tests:
-          - not_null
-
       - name: amount1
         description: "Raw amount of token1 (numeric)"
-        data_tests:
-          - not_null
-
-      - name: amount1_actual
-        description: "Amount of token1 adjusted for decimals"
         data_tests:
           - not_null
 

@@ -2,85 +2,11 @@ version: 2
 
 sources:
   - name: dexSwap_v3
-    schema: envio
+    schema: envio_v2
     database: tsdb
     description: "Raw Uniswap V3 data ingested by Envio HyperIndex"
 
     tables:
-      - name: Pool
-        identifier: Pool
-        description: "Uniswap V3 pools with embedded token metadata"
-        columns:
-          - name: id
-            description: "Unique pool identifier (chainId-poolAddress)"
-            data_type: text
-            data_tests:
-              - not_null
-              - unique
-
-          - name: token0
-            description: "Address of token0"
-            data_type: text
-            data_tests:
-              - not_null
-
-          - name: token0_symbol
-            description: "Symbol of token0 e.g USDC, WETH"
-            data_type: text
-            data_tests:
-              - not_null
-
-          - name: token0_name
-            description: "Full name of token0 e.g USD Coin"
-            data_type: text
-            data_tests:
-              - not_null
-
-          - name: token0_decimals
-            description: "Decimal places for token0"
-            data_type: integer
-            data_tests:
-              - not_null
-
-          - name: token1
-            description: "Address of token1"
-            data_type: text
-            data_tests:
-              - not_null
-
-          - name: token1_symbol
-            description: "Symbol of token1"
-            data_type: text
-            data_tests:
-              - not_null
-
-          - name: token1_name
-            description: "Full name of token1"
-            data_type: text
-            data_tests:
-              - not_null
-
-          - name: token1_decimals
-            description: "Decimal places for token1"
-            data_type: integer
-            data_tests:
-              - not_null
-
-          - name: fee
-            description: "Fee tier of the pool (500, 3000, 10000)"
-            data_type: integer
-            data_tests:
-              - not_null
-              - accepted_values:
-                  values: [1, 100, 500, 3000, 10000]
-
-          - name: createdAt
-            quote: true
-            description: "Block timestamp when pool was created"
-            data_type: numeric
-            data_tests:
-              - not_null
-
       - name: Swap
         identifier: Swap
         description: "Swap events from Uniswap V3 pools"
@@ -103,10 +29,6 @@ sources:
             data_type: text
             data_tests:
               - not_null
-              - relationships:
-                  arguments:
-                    to: source('dexSwap_v3', 'Pool')
-                    field: id
 
           - name: sender
             description: "Address that initiated the swap"
@@ -145,22 +67,73 @@ sources:
             data_tests:
               - not_null
 
-          - name: txHash
+          - name: transaction_id
             quote: true
             description: "Transaction hash of the swap"
             data_type: text
             data_tests:
               - not_null
 
-          - name: blockNumber
-            quote: true
-            description: "Block number the swap was included in"
+          - name: timestamp
+            description: "Block timestamp of the swap"
             data_type: numeric
             data_tests:
               - not_null
 
-          - name: timestamp
-            description: "Block timestamp of the swap"
+          - name: gasPrice
+            quote: true
+            description: "Gas price of the swap"
             data_type: numeric
+            data_tests:
+              - not_null
+
+          - name: amountUSD
+            quote: true
+            description: "USD value of the swap"
+            data_type: numeric
+            data_tests:
+              - not_null
+
+      - name: Token
+        identifier: Token
+        columns:
+          - name: id
+            description: "id of the token"
+            data_type: text
+            data_tests:
+              - not_null
+              - unique
+
+          - name: decimals
+            description: "Number of decimals of the token"
+            data_type: integer
+            data_tests:
+              - not_null
+
+          - name: symbol
+            description: "Symbol of the token"
+            data_type: text
+            data_tests:
+              - not_null
+
+          - name: name
+            description: "Name of the token"
+            data_type: text
+            data_tests:
+              - not_null
+
+      - name: Pool
+        identifier: Pool
+        columns:
+          - name: id
+            description: "Address of the pool"
+            data_type: text
+            data_tests:
+              - not_null
+              - unique
+
+          - name: dex
+            description: "DEX identifier"
+            data_type: text
             data_tests:
               - not_null

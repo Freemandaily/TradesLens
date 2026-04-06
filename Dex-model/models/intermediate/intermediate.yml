@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  # Define the reusable columns anchor
+  - name: _base_intermediate_columns
+    description: "Template for intermediate models"
+    columns:
+      - name: id
+        description: "Unique swap ID"
+        data_tests:
+          - not_null
+
+      - name: swap_timestamp
+        description: "Formatted timestamp of the swap"
+      - name: tx_hash
+        description: "Transaction hash"
+      - name: dex
+        description: "DEX identifier"
+      - name: chain_name
+        description: "Network name (Ethereum, Arbitrum, etc.)"
+      - name: amount_bought
+        description: "Amount of the token purchased in the swap"
+      - name: amount_sold
+        description: "Amount of the token sold in the swap"
+      - name: token_bought
+        description: "Address of the token purchased"
+      - name: token_sold
+        description: "Address of the token sold"
+      - name: token_bought_symbol
+        description: "Symbol of the token purchased"
+      - name: token_sold_symbol
+        description: "Symbol of the token sold"
+      - name: pool
+        description: "Pool address"
+      - name: sqrtPriceX96
+        description: "Price state after the swap"
+      - name: tick
+        description: "Price tick after the swap"
