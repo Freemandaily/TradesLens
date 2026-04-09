@@ -1,0 +1,25 @@
+# Ignore common dev artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+include/
+lib/
+bin/
+pip-selfcheck.json
+.dockerignore
+Dockerfile
+docker-compose.yaml
+.git
+.gitignore
+.env
+.pytest_cache/
+.tox/
+.coverage
+htmlcov/
+*.swp
+*.bak
