@@ -1,64 +1,81 @@
-# TradesLens: Multi-Chain DEX Analytics Engine
+# TradesLens: Cinematic Search Intelligence & DEX Terminal
 
-**TradesLens** is a high-performance data pipeline designed to ingest, transform, and analyze swap data across multiple blockchains and Decentralized Exchanges (DEXes). By combining **Envio HyperIndex** for ultra-fast event ingestion and **dbt** for robust data modeling, TradesLens provides a unified view of the DeFi ecosystem.
+**TradesLens** is a high-fidelity, multi-chain intelligence terminal designed to ingest, transform, and visualize swap data across the DeFi ecosystem. By combining **Envio HyperIndex** for ultra-fast ingestion with a cinematic **React Analytical Dashboard**, TradesLens provides deep, real-time insights into asset flows and protocol performance.
 
 ---
 
-### 🚀 Key Features
-*   **Multi-Chain Support**: Real-time indexing of Ethereum Mainnet, Arbitrum, and Optimism.
-*   **Multi-Protocol Ingestion**: Unified data pipeline for Uniswap V3, SushiSwap V3, and Solidly V3.
-*   **Clean Data Marts**: A centralized `fct_dex_swaps` table that unions data from all sources into a standardized, analyst-ready format.
-*   **Incremental Processing**: Optimized dbt models that process 10k+ swaps in seconds using incremental merge strategies.
-*   **Full Infrastructure**: Containerized deployment using Docker, featuring TimescaleDB for time-series optimization and Hasura for GraphQL API access.
+### �️ Search Intelligence Architecture
+TradesLens transforms raw on-chain events into actionable intelligence reports:
+*   **Intelligence Search**: Instantly look up transaction hashes, liquidity pools, or assets.
+*   **Asset Flow Reporting**: Receipt-style visual breakdowns of Inbound/Outbound asset movements.
+*   **Multi-Metric Analytics**: Live tracking of **Total Volume**, **Swap Counts**, and **Average Trade Size**.
+*   **Cross-Chain Attribution**: Native support for **Ethereum**, **Arbitrum**, **Optimism**, and **Base** with chain-specific branding.
+*   **Cinematic UI/UX**: High-contrast, industrial dark theme optimized for clarity and professional data analysis.
 
 ---
 
 ### 🛠 Tech Stack
-*   **Indexer**: [Envio HyperIndex](https://envio.dev/) (Multi-chain Event Indexing)
-*   **Transformation**: [dbt-core](https://www.getdbt.com/) (Data Modeling & Testing)
-*   **Database**: [TimescaleDB](https://www.timescale.com/) (PostgreSQL with Time-Series extensions)
-*   **API Layer**: [Hasura](https://hasura.io/) (Instant GraphQL)
-*   **Environment**: Docker 
+| Tier | Technology | Description |
+| :--- | :--- | :--- |
+| **Ingestion** | [Envio HyperIndex](https://envio.dev/) | Multi-chain event indexing & factory monitoring |
+| **Modeling** | [dbt-core](https://www.getdbt.com/) | Incremental data normalization & Medallion architecture |
+| **Database** | [TimescaleDB](https://www.timescale.com/) | Time-series optimized PostgreSQL |
+| **Intelligence API** | [FastAPI](https://fastapi.tiangolo.com/) | High-performance search & analytical backend |
+| **Frontend** | [React 19](https://react.dev/) + [Vite](https://vitejs.dev/) | Cinematic terminal UI with real-time charting |
 
 ---
 
-### 📂 Repository Structure
+### 📂 Project Structure
 ```text
-├── Dex-Indexer/      # Envio configuration, handlers, and ABIs
+├── Dex-Indexer/      # Envio HyperIndex configuration & event handlers
 ├── Dex-model/        # dbt project (Staging, Intermediate, and Marts)
-
+└── dashboard/
+    ├── backend/      # FastAPI Intelligence API (SQLAlchemy/TimescaleDB)
+    └── frontend/     # React 19 Analytical Dashboard (Vite/Tailwind)
 ```
 
 ---
 
-### 🛠 Getting Started
+### � Getting Started
 
-#### 1. Setup Environment
-Copy the example environment file and fill in your RPC URLs:
+#### 1. Environment Configuration
+Copy the environment template and configure your Database and RPC credentials:
 ```bash
 cp .env.example .env
 ```
 
-#### 2. Start the Indexer
-Initialize the Envio HyperIndex and begin data ingestion:
+#### 2. Start the Intelligence Stack
+The entire system is containerized for seamless local deployment:
 ```bash
-cd Dex-Indexer
-pnpm envio dev
+# Start Backend & API
+cd dashboard/backend
+docker-compose up --build
+
+# Start Frontend Terminal
+cd dashboard/frontend
+npm install
+npm run dev
 ```
 
-#### 3. Build & Run the Analytics Layer
-Once data is indexed, run the dbt build to build the unified `fct_dex_swaps` table:
+#### 3. Data Processing
+Once the indexer is running, standardize your data using the dbt pipeline:
 ```bash
 cd Dex-model
-uv run dbt build --full-refresh
+uv run dbt build
 ```
 
 ---
 
-### 📊 Data Lineage
-TradesLens follows the **Medallion Architecture**:
-1.  **Bronze (Raw)**: Indexed events directly from the blockchain via Envio.
-2.  **Silver (Staging/Intermediate)**: Normalized columns, timestamp conversions, and protocol-specific filters.
-3.  **Gold (Marts)**: Unified `fct_dex_swaps` and aggregated tables for volume and liquidity analysis.
+### 📊 Intelligence Lineage (Medallion Architecture)
+1.  **Bronze (Raw)**: Indexed protocol events (Swaps, Mints, Burns) via Envio.
+2.  **Silver (Normalized)**: Standardized columns, USD pricing derivation, and chain attribution.
+3.  **Gold (Intelligence)**: Unified `fct_dex_swaps` and pre-aggregated analytics for the frontend terminal.
+
+---
+
+### 🛡️ Contributors & Vision
+TradesLens is built for transparency and deep on-chain visibility. 
+*   **GitHub**: [TradesLens Repository](https://github.com/Freemandaily/TradesLens)
+*   **Author**: Onah Innocent (Freeman)
 
 --
