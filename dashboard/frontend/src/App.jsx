@@ -1,5 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import axios from "axios";
+import uniLogo from "./assets/uniswap.png";
+import sushiLogo from "./assets/sushiswap.png";
+import solidLogo from "./assets/solidly.png";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid, Cell, PieChart, Pie
@@ -53,9 +56,18 @@ const C = {
 };
 
 const PROTOCOLS = {
-  uniswap: { label: "Uniswap", id: "UniswapV3", color: C.uni, dot: "#3b82f6", share: 0 },
-  sushiswap: { label: "Sushiswap", id: "SushiV3", color: C.sushi, dot: "#17C3B2", share: 0 },
-  solidly: { label: "Solidly", id: "SolidlyV3", color: C.solid, dot: "#A78BFA", share: 0 },
+  uniswap: {
+    label: "Uniswap", id: "UniswapV3", color: C.uni, dot: C.uni, logo: uniLogo,
+    description: "The leading decentralized exchange protocol, pioneered automated market making (AMM) with concentrated liquidity for maximum capital efficiency."
+  },
+  sushiswap: {
+    label: "Sushiswap", id: "SushiV3", color: C.sushi, dot: C.sushi, logo: sushiLogo,
+    description: "A community-focused AMM protocol offering advanced yield opportunities and a robust suite of decentralized financial tools across multiple chains."
+  },
+  solidly: {
+    label: "Solidly", id: "SolidlyV3", color: C.solid, dot: C.solid, logo: solidLogo,
+    description: "A next-generation trading protocol utilizing ve(3,3) mechanics to align incentives between liquidity providers and token holders."
+  }
 };
 
 const CHAINS = ["Ethereum", "Arbitrum", "Optimism"];
@@ -435,11 +447,23 @@ function ProtocolView({ proto, analytics, year, setYear, month, setMonth, loadin
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Protocol Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ width: 12, height: 12, borderRadius: "50%", background: p.dot }} />
-        <span style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>{p.label} Intelligence</span>
-        <Badge text="Live Performance" color={p.color} />
+      {/* Protocol Header & Description */}
+      <div style={{
+        background: C.card, border: `1px solid ${C.border}`, borderRadius: 16,
+        padding: "24px", display: "flex", alignItems: "center", gap: 24, marginBottom: 8
+      }}>
+        <div style={{ width: 64, height: 64, background: "#000", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${C.border}` }}>
+          <img src={p.logo} alt={p.label} style={{ width: 44, height: 44, objectFit: "contain" }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
+            <span style={{ fontSize: 24, fontWeight: 900, color: "#fff", letterSpacing: "-0.5px" }}>{p.label} Intelligence</span>
+            <Badge text="Live Performance" color={p.color} />
+          </div>
+          <div style={{ fontSize: 13, color: C.muted, maxWidth: 600, lineHeight: 1.5 }}>
+            {p.description}
+          </div>
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 16 }}>
