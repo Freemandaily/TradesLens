@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import logo from "./assets/logo.png";
 import axios from "axios";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -980,13 +981,8 @@ export default function App() {
           display: "flex", flexDirection: "column",
           height: "100%",
         }}>
-          <div style={{ padding: "26px 20px", borderBottom: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.04em", display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 26, height: 26, background: C.uni, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <TrendingUp size={16} color="white" />
-              </div>
-              TradesLens
-            </div>
+          <div style={{ padding: "24px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <img src={logo} alt="TradesLens" style={{ width: "100%", height: "auto", maxWidth: 160, opacity: 0.9 }} />
           </div>
           <nav style={{ padding: "24px 12px", flex: 1 }}>
             <button onClick={() => setView("overview")}
