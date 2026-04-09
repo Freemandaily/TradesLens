@@ -1,16 +1,17 @@
-# TradesLens: Cinematic Search Intelligence & DEX Terminal
+# TradesLens: Search Intelligence & DEX Terminal
 
-**TradesLens** is a high-fidelity, multi-chain intelligence terminal designed to ingest, transform, and visualize swap data across the DeFi ecosystem. By combining **Envio HyperIndex** for ultra-fast ingestion with a cinematic **React Analytical Dashboard**, TradesLens provides deep, real-time insights into asset flows and protocol performance.
+**TradesLens** is a high-performance data pipeline designed to ingest, transform, and analyze swap data across multiple blockchains and Decentralized Exchanges (DEXes). By combining **Envio HyperIndex** for ultra-fast event ingestion and **dbt** for robust data modeling, TradesLens provides a unified view of the DeFi ecosystem.
+
+**[🚀 Live Intelligence Dashboard](https://intel-tradeslens.onrender.com/)**
 
 ---
 
-### �️ Search Intelligence Architecture
-TradesLens transforms raw on-chain events into actionable intelligence reports:
-*   **Intelligence Search**: Instantly look up transaction hashes, liquidity pools, or assets.
-*   **Asset Flow Reporting**: Receipt-style visual breakdowns of Inbound/Outbound asset movements.
-*   **Multi-Metric Analytics**: Live tracking of **Total Volume**, **Swap Counts**, and **Average Trade Size**.
-*   **Cross-Chain Attribution**: Native support for **Ethereum**, **Arbitrum**, **Optimism**, and **Base** with chain-specific branding.
-*   **Cinematic UI/UX**: High-contrast, industrial dark theme optimized for clarity and professional data analysis.
+### 🚀 Key Features
+*   **Multi-Chain Support**: Real-time indexing of Ethereum Mainnet, Arbitrum, and Optimism.
+*   **Multi-Protocol Ingestion**: Unified data pipeline for Uniswap V3, SushiSwap V3, and Solidly V3.
+*   **Clean Data Marts**: A centralized `fct_dex_swaps` table that unions data from all sources into a standardized, analyst-ready format.
+*   **Incremental Processing**: Optimized dbt models that process 10k+ swaps in seconds using incremental merge strategies.
+*   **Full Infrastructure**: Containerized deployment using Docker, featuring TimescaleDB for time-series optimization and Hasura for GraphQL API access.
 
 ---
 
