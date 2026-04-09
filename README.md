@@ -2,11 +2,11 @@
 
 **TradesLens** is a high-performance data pipeline designed to ingest, transform, and analyze swap data across multiple blockchains and Decentralized Exchanges (DEXes). By combining **Envio HyperIndex** for ultra-fast event ingestion and **dbt** for robust data modeling, TradesLens provides a unified view of the DeFi ecosystem.
 
-**[🚀 Live Intelligence Dashboard](https://intel-tradeslens.onrender.com/)**
+**[ Live Intelligence Dashboard](https://intel-tradeslens.onrender.com/)**
 
 ---
 
-### 🚀 Key Features
+###  Key Features
 *   **Multi-Chain Support**: Real-time indexing of Ethereum Mainnet, Arbitrum, and Optimism.
 *   **Multi-Protocol Ingestion**: Unified data pipeline for Uniswap V3, SushiSwap V3, and Solidly V3.
 *   **Clean Data Marts**: A centralized `fct_dex_swaps` table that unions data from all sources into a standardized, analyst-ready format.
