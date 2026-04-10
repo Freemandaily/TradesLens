@@ -45,21 +45,29 @@ Copy the environment template and configure your Database and RPC credentials:
 cp .env.example .env
 ```
 
-#### 2. Start the Intelligence Stack
-The entire system is containerized for seamless local deployment:
+#### 2. Run the Indexer
+The indexer captures real-time events and stores them in the database:
+```bash
+cd Dex-Indexer
+cp .env.example .env  # Configure your RPC URLs and DB credentials
+docker-compose up --build
+```
+
+#### 3. Start the Intelligence Stack
+Open a new terminal or return to the root directory:
 ```bash
 # Start Backend & API
 cd dashboard/backend
 docker-compose up --build
 
-# Start Frontend Terminal
-cd dashboard/frontend
+# Start Frontend (Internal Terminal UI)
+cd ../frontend
 npm install
 npm run dev
 ```
 
-#### 3. Data Processing
-Once the indexer is running, standardize your data using the dbt pipeline:
+#### 4. Data Processing
+Once the indexer is running and the database is populated, standardize your data using the dbt pipeline:
 ```bash
 cd Dex-model
 uv run dbt build
@@ -78,5 +86,6 @@ uv run dbt build
 TradesLens is built for transparency and deep on-chain visibility. 
 *   **GitHub**: [TradesLens Repository](https://github.com/Freemandaily/TradesLens)
 *   **Author**: Onah Innocent (Freeman)
+*   **X**: [@Freemandayly](https://x.com/freemandayly)
 
 --
