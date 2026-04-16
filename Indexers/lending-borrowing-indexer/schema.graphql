@@ -1,0 +1,110 @@
+type Price @entity {
+  id: ID! # Token address (lowercase)
+  price: BigDecimal!
+  timestamp: Int!
+  chainId: Int!
+}
+
+type Supply @entity {
+  id: ID!
+  contractAddress: String!
+  reserve: String!
+  reserveName: String
+  reserveSymbol: String
+  user: String!
+  onBehalfOf: String!
+  amount: BigInt!
+  amountUSD: BigDecimal
+  reserveDecimals: Int
+  referralCode: Int!
+  timestamp: Int!
+  transactionHash: String!
+  txFrom: String!
+  txTo: String
+  blockNumber: Int!
+  chainId: Int!
+}
+
+type Borrow @entity {
+  id: ID!
+  contractAddress: String!
+  reserve: String!
+  reserveName: String
+  reserveSymbol: String
+  user: String!
+  onBehalfOf: String!
+  amount: BigInt!
+  amountUSD: BigDecimal
+  reserveDecimals: Int
+  interestRateMode: Int!
+  borrowRate: BigInt!
+  referralCode: Int!
+  timestamp: Int!
+  transactionHash: String!
+  txFrom: String!
+  txTo: String
+  blockNumber: Int!
+  chainId: Int!
+}
+
+type Repay @entity {
+  id: ID!
+  contractAddress: String!
+  reserve: String!
+  reserveName: String
+  reserveSymbol: String
+  user: String!
+  repayer: String!
+  amount: BigInt!
+  amountUSD: BigDecimal
+  reserveDecimals: Int
+  useATokens: Boolean!
+  timestamp: Int!
+  transactionHash: String!
+  txFrom: String!
+  txTo: String
+  blockNumber: Int!
+  chainId: Int!
+}
+
+type Liquidation @entity {
+  id: ID!
+  contractAddress: String!
+  collateralAsset: String!
+  collateralAssetName: String
+  collateralAssetSymbol: String
+  debtAsset: String!
+  debtAssetName: String
+  debtAssetSymbol: String
+  user: String!
+  debtToCover: BigInt!
+  debtToCoverUSD: BigDecimal
+  debtAssetDecimals: Int
+  liquidatedCollateralAmount: BigInt!
+  liquidatedCollateralAmountUSD: BigDecimal
+  collateralAssetDecimals: Int
+  liquidator: String!
+  receiveAToken: Boolean!
+  timestamp: Int!
+  transactionHash: String!
+  txFrom: String!
+  txTo: String
+  blockNumber: Int!
+  chainId: Int!
+}
+
+type TokenMetadata @entity {
+  id: ID! # Source (Chainlink Feed) address (lowercase)
+  tokenAddress: String! # The token address
+  name: String!
+  symbol: String!
+  decimals: Int!
+}
+
+type Token @entity {
+  id: ID! # Token address (lowercase)
+  name: String!
+  symbol: String!
+  decimals: Int!
+  source: String! # Chainlink feed address
+}

@@ -1,0 +1,22 @@
+app = "freeman-deploy-hasura"
+primary_region = "iad"
+
+[build]
+  image = "hasura/graphql-engine:v2.43.0"
+
+[env]
+  HASURA_GRAPHQL_ENABLE_CONSOLE = "true"
+  HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES = "true"
+  HASURA_GRAPHQL_UNAUTHORIZED_ROLE = "public"
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]

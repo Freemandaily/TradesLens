@@ -1,0 +1,48 @@
+services:
+  graphql-engine:
+    image: hasura/graphql-engine:v2.43.0
+    ports:
+      - "8080:8080"
+    restart: always
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: ${HASURA_GRAPHQL_DATABASE_URL}
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+      HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES: "true"
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: public
+    env_file:
+      - .env
+    healthcheck:
+      test: timeout 1s bash -c ':> /dev/tcp/127.0.0.1/8080' || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 60s
+    networks:
+      - my-proxy-net
+
+  indexer:
+    build: .
+    ports:
+      - "8083:8081"
+    environment:
+      ENVIO_PG_HOST: ${ENVIO_PG_HOST}
+      ENVIO_PG_PORT: ${ENVIO_PG_PORT}
+      ENVIO_PG_USER: ${ENVIO_PG_USER}
+      ENVIO_PG_PASSWORD: ${ENVIO_PG_PASSWORD}
+      ENVIO_PG_DATABASE: ${ENVIO_PG_DATABASE}
+      ENVIO_PG_SSL_MODE: ${ENVIO_PG_SSL_MODE}
+      ENVIO_PG_PUBLIC_SCHEMA: ${ENVIO_PG_PUBLIC_SCHEMA}
+      HASURA_GRAPHQL_ENDPOINT: "http://graphql-engine:8080"
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET}
+    env_file:
+      - .env
+    depends_on:
+      graphql-engine:
+        condition: service_healthy
+    networks:
+      - my-proxy-net
+
+networks:
+  my-proxy-net:
+    name: local_test_network

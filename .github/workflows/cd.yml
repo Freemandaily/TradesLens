@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "Dex-model/**"
+      - "model/**"
       - ".github/workflows/cd.yml"
   schedule:
     - cron: "0 * * * *" # Runs every hour

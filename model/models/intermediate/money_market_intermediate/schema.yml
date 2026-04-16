@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: int_borrow
+    description: "Intermediate borrow model with normalized amounts and enriched metadata."
+    columns:
+      - name: id
+        data_tests:
+          - not_null
+          - unique
+      - name: amount
+        description: "Normalized borrow amount (raw amount / 10^decimals)."
+
+  - name: int_supply
+    description: "Intermediate supply model with normalized amounts and enriched metadata."
+    columns:
+      - name: id
+        data_tests:
+          - not_null
+          - unique
+      - name: amount
+        description: "Normalized supply amount (raw amount / 10^decimals)."
+
+  - name: int_repay
+    description: "Intermediate repay model with normalized amounts and enriched metadata."
+    columns:
+      - name: id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: int_liquidation
+    description: "Intermediate liquidation model with normalized amounts and enriched metadata."
+    columns:
+      - name: id
+        data_tests:
+          - not_null
+          - unique

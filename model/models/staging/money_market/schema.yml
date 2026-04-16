@@ -1,0 +1,70 @@
+version: 2
+
+models:
+  - name: stg_borrow
+    description: "Staged borrow events from lending protocols."
+    columns:
+      - name: id
+        description: "Unique event identifier."
+        data_tests:
+          - not_null
+          - unique
+      - name: contractAddress
+        description: "The address of the lending contract."
+      - name: token_address
+        description: "The address of the asset being borrowed."
+      - name: user
+        description: "The address of the user who borrowed."
+      - name: amount
+        description: "The amount borrowed in native units."
+      - name: amountUSD
+        description: "The USD value of the amount borrowed."
+      - name: blockchain
+        description: "The name of the blockchain where the event occurred."
+
+  - name: stg_supply
+    description: "Staged supply events from lending protocols."
+    columns:
+      - name: id
+        description: "Unique event identifier."
+        data_tests:
+          - not_null
+          - unique
+      - name: token_address
+        description: "The address of the asset being supplied."
+      - name: amount
+        description: "The amount supplied in native units."
+      - name: amountUSD
+        description: "The USD value of the amount supplied."
+      - name: blockchain
+        description: "The name of the blockchain where the event occurred."
+
+  - name: stg_repay
+    description: "Staged repay events from lending protocols."
+    columns:
+      - name: id
+        description: "Unique event identifier."
+        data_tests:
+          - not_null
+          - unique
+      - name: token_address
+        description: "The address of the asset being repaid."
+      - name: amount
+        description: "The amount repaid in native units."
+      - name: amountUSD
+        description: "The USD value of the amount repaid."
+
+  - name: stg_liquidation
+    description: "Staged liquidation events from lending protocols."
+    columns:
+      - name: id
+        description: "Unique event identifier."
+        data_tests:
+          - not_null
+          - unique
+      - name: collateral_asset
+        description: "The address of the collateral asset liquidated."
+      - name: debt_asset
+        description: "The address of the debt asset repaid."
+      - name: liquidated_collateral_amount_usd
+        description: "The USD value of the liquidated collateral."

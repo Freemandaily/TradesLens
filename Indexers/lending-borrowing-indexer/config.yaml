@@ -1,0 +1,74 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+name: lending-borrowing-indexer
+description: Lending and Borrowing Indexing for Ethereum and Optimism
+field_selection:
+  transaction_fields:
+    - "hash"
+    - "from"
+    - "to"
+
+# 1. Global Contract Definitions (Required by Envio for multi-chain with same names)
+contracts:
+  - name: AaveV3Pool
+    handler: src/EventHandlers.ts
+    events:
+      - event: "Supply(address indexed reserve, address user, address indexed onBehalfOf, uint256 amount, uint16 indexed referralCode)"
+      - event: "Borrow(address indexed reserve, address user, address indexed onBehalfOf, uint256 amount, uint8 interestRateMode, uint256 borrowRate, uint16 indexed referralCode)"
+      - event: "Repay(address indexed reserve, address indexed user, address indexed repayer, uint256 amount, bool useATokens)"
+      - event: "LiquidationCall(address indexed collateralAsset, address indexed debtAsset, address indexed user, uint256 debtToCover, uint256 liquidatedCollateralAmount, address liquidator, bool receiveAToken)"
+  - name: ChainlinkAggregator
+    handler: src/EventHandlers.ts
+    events:
+      - event: "AnswerUpdated(int256 current, uint256 roundId, uint256 updatedAt)"
+
+# 2. Network Configurations (Referencing the global contracts by name)
+networks:
+  - id: 1 # Ethereum Mainnet
+    start_block: 24860112
+    contracts:
+      - name: AaveV3Pool
+        address: "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"
+      - name: ChainlinkAggregator
+        address:
+          - "0x3E7d1eAB13ad0104d2750B8863b489D65364e32D"
+          - "0x3f12643D3f6f874d39C2a4c9f2Cd6f2DbAC877FC"
+          - "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419"
+          - "0x8fFfFfd4AfB6115b954Bd326cbe7B4BA576818f6"
+          - "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c"
+          - "0x2665701293fCbEB223D11A08D826563EDcCE423A"
+          - "0xa569d910839Ae8865Da8F8e70FfFb0cBA869F961"
+          - "0x26C46B7aD0012cA71F2298ada567dC9Af14E7f2A"
+          - "0x8f1dF6D7F2db73eECE86a18b4381F4707b918FB1"
+          - "0x66704DAD467A7cA508B3be15865D9B9F3E186c90"
+          - "0x8350b7De6a6a2C1368E7D4Bd968190e13E354297"
+          - "0xAed0c38402a5d19df6E4c03F4E2DceD6e29c1ee9"
+          - "0x2c1d072e956AFFC0D435Cb7AC38EF18d24d9127c"
+          - "0x04F84020Fdf10d9ee64D1dcC2986EDF2F556DA11"
+          - "0xfF30586cD0F29eD462364C7e81375FC0C71219b1"
+          - "0x14f0737d6b705259e521EA6E9E3506AC78dBd311"
+          - "0x3D7aE7E594f2f2091Ad8798313450130d0Aba3a0"
+          - "0xEEf0C605546958c1f899b6fB336C20671f9cD49F"
+          - "0xc90E3460424fb8ea79775089E9053113FEE34Ed0"
+  - id: 10 # Optimism
+    start_block: 150205221
+    contracts:
+      - name: AaveV3Pool
+        address: "0x794a61358D6845594F94dc1DB02A252b5b4814aD"
+      - name: ChainlinkAggregator
+        address:
+          - "0xf116891adaBb21Df94663c8Aa62f87fC1bc19d53"
+          - "0x8ea108096AdEA6Ac059cbEaE6862ce9BB52B4E87"
+          - "0x0D276FC14719f9292D5C1eA2198673d1f4269246"
+          - "0x724E47194d97263ccb71FDad84b4fed18a8be387"
+          - "0x6379A975Ef93EC2bE87f56A02CCF8535dFAde201"
+          - "0xF17e75D58D4Be71B8e674fA104B71a827e38F087"
+          - "0xDb4E371F8dc7D834D3F1359295c669352ECe7D9c"
+          - "0x5a602E33B935415477550c709a79cDF23E1355d5"
+          - "0x338ed6787f463394D24813b297401B9F05a8C9d1"
+          - "0xD702DD976Fb76Fffc2D3963D037dfDae5b04E593"
+          - "0xCc232dcFAAE6354cE191Bd574108c1aD03f86450"
+          - "0x13e3Ee699D1909E989722E753853AE30b17e08c5"
+
+unordered_multichain_mode: false
+preload_handlers: false
+address_format: lowercase

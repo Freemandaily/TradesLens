@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: fact_borrow
+    description: "Fact table containing all borrow events across protocols."
+    columns:
+      - name: id
+        data_tests:
+          - not_null
+          - unique
+      - name: blockchain
+        description: "The source blockchain."
+      - name: amountUSD
+        description: "Value of the borrow in USD at the time of the event."
+
+  - name: fact_supply
+    description: "Fact table containing all supply events across protocols."
+    columns:
+      - name: id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: fact_repay
+    description: "Fact table containing all repay events across protocols."
+    columns:
+      - name: id
+        data_tests:
+          - not_null
+          - unique
+
+  - name: fact_liquidation
+    description: "Fact table containing all liquidation events across protocols."
+    columns:
+      - name: id
+        data_tests:
+          - not_null
+          - unique
