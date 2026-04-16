@@ -18,7 +18,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: Dex-model
+        working-directory: model
 
     steps:
       - name: Checkout
