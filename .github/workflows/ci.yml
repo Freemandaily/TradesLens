@@ -1,12 +1,12 @@
 name: dbt CI
 
-on:
-  pull_request:
-    branches:
-      - main
-    paths:
-      - "Dex-model/**"
-      - ".github/workflows/ci.yml"
+# on:
+#   pull_request:
+#     branches:
+#       - main
+#     paths:
+#       - "Dex-model/**"
+#       - ".github/workflows/ci.yml"
 
 jobs:
   dbt-ci:

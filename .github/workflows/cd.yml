@@ -1,15 +1,15 @@
 name: dbt CD
 
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - "model/**"
-      - ".github/workflows/cd.yml"
-  schedule:
-    - cron: "0 * * * *" # Runs every hour
-  workflow_dispatch: # Allows manual trigger from GitHub UI
+# on:
+#   push:
+#     branches:
+#       - main
+#     paths:
+#       - "model/**"
+#       - ".github/workflows/cd.yml"
+# schedule:
+# - cron: "0 * * * *" # Runs every hour
+# workflow_dispatch: # Allows manual trigger from GitHub UI
 
 jobs:
   dbt-cd:
