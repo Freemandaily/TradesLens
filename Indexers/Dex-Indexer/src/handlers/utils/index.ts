@@ -32,6 +32,8 @@ export async function loadTransaction(
     blockNumber: number,
     timestamp: number,
     gasPrice: bigint,
+    from: string,
+    to: string,
     context: handlerContext
 ): Promise<Transaction> {
     const existing = await context.Transaction.get(txHash);
@@ -41,11 +43,15 @@ export async function loadTransaction(
         timestamp: 0,
         gasUsed: ZERO_BI,
         gasPrice: ZERO_BI,
+        from: "",
+        to: "",
     };
     tx.blockNumber = blockNumber;
     tx.timestamp = timestamp;
     tx.gasPrice = gasPrice;
     tx.gasUsed = ZERO_BI; // move to receipt when available
+    tx.from = from.toLowerCase();
+    tx.to = to.toLowerCase();
     context.Transaction.set(tx as Transaction);
     return tx as Transaction;
 }

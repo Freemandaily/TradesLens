@@ -1,28 +1,60 @@
-import { UniswapV3Factory, SolidlyV3Factory, SushiV3Factory } from "generated";
+import { UniswapV3Factory } from "generated";
 import { ZERO_BD, ZERO_BI, ONE_BI } from "./utils/constants";
 import { CHAIN_CONFIGS } from "./utils/chains";
 import { isAddressInList } from "./utils/index";
-import { getTokensMetadataEffect } from "./utils/getTokensMetadataEffect";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared handler — creates Pool, Token (×2), Bundle on first pool
+// Uniswap V3 Factory — creates Pool, Token entities placeholder
 // ─────────────────────────────────────────────────────────────────────────────
 const handlePoolCreated = async (
     { event, context }: any,
     dexName: string
 ) => {
+    console.log(`[Factory] Handling PoolCreated for ${dexName} on chain ${event.chainId} at block ${event.block.number}`);
     const chainId = event.chainId;
     const cfg = CHAIN_CONFIGS[chainId];
     if (!cfg) return;
 
     const { token0: token0Address, token1: token1Address, fee, pool: poolAddress } = event.params;
 
+    if (!token0Address || !token1Address || !poolAddress) {
+        console.error(`[Factory] Missing required parameters in ${dexName} event:`, event.params);
+        return;
+    }
+
+    const feeValue = fee !== undefined ? fee : 0;
+
     if (isAddressInList(poolAddress, cfg.poolsToSkip)) return;
 
-    // 1. Check database for existing tokens
+    // 1. Resolve initial metadata (from overrides or placeholders)
+    const getInitialMeta = (address: string) => {
+        const override = cfg.tokenOverrides.find(o => o.address.toLowerCase() === address.toLowerCase());
+        if (override) {
+            return { ...override, isMetadataFetched: true };
+        }
+        // Fallback for native token
+        if (address.toLowerCase() === "0x0000000000000000000000000000000000000000") {
+            return {
+                symbol: cfg.nativeTokenDetails.symbol,
+                name: cfg.nativeTokenDetails.name,
+                decimals: cfg.nativeTokenDetails.decimals,
+                isMetadataFetched: true
+            };
+        }
+        return {
+            symbol: '?',
+            name: 'Unknown Token',
+            decimals: 18n,
+            isMetadataFetched: false
+        };
+    };
+
+    const token0Id = `${chainId}-${token0Address.toLowerCase()}`;
+    const token1Id = `${chainId}-${token1Address.toLowerCase()}`;
+
     const [token0RO, token1RO] = await Promise.all([
-        context.Token.get(`${chainId}-${token0Address.toLowerCase()}`),
-        context.Token.get(`${chainId}-${token1Address.toLowerCase()}`),
+        context.Token.get(token0Id),
+        context.Token.get(token1Id),
     ]);
 
     // One Bundle per chain (shared across DEXes)
@@ -34,40 +66,18 @@ const handlePoolCreated = async (
         });
     }
 
-    // 2. Resolve Metadata — Fetch BOTH in a single multicall if either is missing
-    let meta0, meta1;
-    if (!token0RO || !token1RO) {
-        const overrides = {
-            o0: cfg.tokenOverrides.find(o => o.address.toLowerCase() === token0Address.toLowerCase()),
-            o1: cfg.tokenOverrides.find(o => o.address.toLowerCase() === token1Address.toLowerCase()),
-        };
-
-        // Fetch using the optimized multicall effect if not fully overridden
-        if (overrides.o0 && overrides.o1) {
-            meta0 = overrides.o0;
-            meta1 = overrides.o1;
-        } else {
-            const results = await context.effect(getTokensMetadataEffect, {
-                token0: token0Address,
-                token1: token1Address,
-                chainId,
-            });
-            meta0 = overrides.o0 || results.meta0;
-            meta1 = overrides.o1 || results.meta1;
-        }
-    }
-
     // ── Token 0 ──────────────────────────────────────────────────────────────
-    const token0Id = `${chainId}-${token0Address.toLowerCase()}`;
     let token0;
     if (token0RO) {
         token0 = { ...token0RO };
     } else {
+        const meta = getInitialMeta(token0Address);
         token0 = {
             id: token0Id,
-            symbol: meta0!.symbol,
-            name: meta0!.name,
-            decimals: BigInt(meta0!.decimals),
+            symbol: meta.symbol,
+            name: meta.name,
+            decimals: meta.decimals,
+            isMetadataFetched: meta.isMetadataFetched,
             isWhitelisted: isAddressInList(token0Address, cfg.whitelistTokens),
             volume: ZERO_BD,
             volumeUSD: ZERO_BD,
@@ -84,21 +94,22 @@ const handlePoolCreated = async (
     }
 
     // ── Token 1 ──────────────────────────────────────────────────────────────
-    const token1Id = `${chainId}-${token1Address.toLowerCase()}`;
     let token1;
     if (token1RO) {
         token1 = { ...token1RO };
     } else {
+        const meta = getInitialMeta(token1Address);
         token1 = {
             id: token1Id,
-            symbol: meta1!.symbol,
-            name: meta1!.name,
-            decimals: BigInt(meta1!.decimals),
+            symbol: meta.symbol,
+            name: meta.name,
+            decimals: meta.decimals,
+            isMetadataFetched: meta.isMetadataFetched,
             isWhitelisted: isAddressInList(token1Address, cfg.whitelistTokens),
             volume: ZERO_BD,
             volumeUSD: ZERO_BD,
             untrackedVolumeUSD: ZERO_BD,
-            feesUSD: ZERO_BI as any, // This was error in previous code if any, let's use ZERO_BD
+            feesUSD: ZERO_BD,
             txCount: ZERO_BI,
             poolCount: ZERO_BI,
             totalValueLocked: ZERO_BD,
@@ -107,8 +118,6 @@ const handlePoolCreated = async (
             derivedETH: ZERO_BD,
             whitelistPools: [] as string[],
         };
-        // Just correcting the type mismatch during copy-paste
-        token1.feesUSD = ZERO_BD;
     }
 
     // ── Pool ─────────────────────────────────────────────────────────────────
@@ -120,7 +129,7 @@ const handlePoolCreated = async (
         createdAtBlockNumber: BigInt(event.block.number),
         token0_id: token0Id,
         token1_id: token1Id,
-        feeTier: BigInt(fee),
+        feeTier: BigInt(feeValue),
         liquidity: ZERO_BI,
         sqrtPrice: ZERO_BI,
         token0Price: ZERO_BD,
@@ -152,7 +161,6 @@ const handlePoolCreated = async (
         token0.whitelistPools = [...token0.whitelistPools, poolId];
     }
 
-    // bump pool count on tokens
     token0.poolCount = token0.poolCount + ONE_BI;
     token1.poolCount = token1.poolCount + ONE_BI;
 
@@ -165,16 +173,7 @@ const handlePoolCreated = async (
 // Registrations
 // ─────────────────────────────────────────────────────────────────────────────
 UniswapV3Factory.PoolCreated.contractRegister(({ event, context }) => {
+    console.log(`[UniswapV3] contractRegister called for pool ${event.params.pool}`);
     context.addUniswapV3Pool(event.params.pool);
 });
 UniswapV3Factory.PoolCreated.handler((args) => handlePoolCreated(args, "UniswapV3"));
-
-SolidlyV3Factory.PoolCreated.contractRegister(({ event, context }) => {
-    context.addSolidlyV3Pool(event.params.pool);
-});
-SolidlyV3Factory.PoolCreated.handler((args) => handlePoolCreated(args, "SolidlyV3"));
-
-SushiV3Factory.PoolCreated.contractRegister(({ event, context }) => {
-    context.addSushiV3Pool(event.params.pool);
-});
-SushiV3Factory.PoolCreated.handler((args) => handlePoolCreated(args, "SushiV3"));

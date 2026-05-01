@@ -1,10 +1,9 @@
 import { experimental_createEffect, S } from "envio";
-import { createPublicClient, http } from "viem";
+import { createPublicClient, http, hexToString, isHex } from "viem";
 import { mainnet, optimism, arbitrum } from "viem/chains";
 import { ADDRESS_ZERO } from "./constants";
 import { getChainConfig, getRpcUrl } from "./chains";
 
-// ABI to handle both string and bytes32 (for legacy tokens like MKR)
 const ERC20_ABI = [
     { inputs: [], name: "name", outputs: [{ type: "string" }], stateMutability: "view", type: "function" },
     { inputs: [], name: "symbol", outputs: [{ type: "string" }], stateMutability: "view", type: "function" },
@@ -13,10 +12,24 @@ const ERC20_ABI = [
     { inputs: [], name: "symbol", outputs: [{ type: "bytes32" }], stateMutability: "view", type: "function" },
 ] as const;
 
-import { hexToString, isHex } from "viem";
+const POOL_ABI = [
+    { inputs: [], name: "token0", outputs: [{ type: "address" }], stateMutability: "view", type: "function" },
+    { inputs: [], name: "token1", outputs: [{ type: "address" }], stateMutability: "view", type: "function" },
+    { inputs: [], name: "fee", outputs: [{ type: "uint24" }], stateMutability: "view", type: "function" },
+] as const;
 
-// Cache for viem clients per chainId
 const clients: Record<number, any> = {};
+
+function getClient(chainId: number) {
+    if (!clients[chainId]) {
+        const chain = chainId === 1 ? mainnet : chainId === 10 ? optimism : arbitrum;
+        clients[chainId] = createPublicClient({
+            chain,
+            transport: http(getRpcUrl(chainId)),
+        });
+    }
+    return clients[chainId];
+}
 
 function sanitize(result: any): string {
     if (!result) return "";
@@ -25,7 +38,6 @@ function sanitize(result: any): string {
         s = result;
     } else if (isHex(result)) {
         try {
-            // Some tokens return hex that is valid string but not bytes32
             s = hexToString(result).replace(/\0/g, "");
         } catch {
             try {
@@ -38,6 +50,43 @@ function sanitize(result: any): string {
     return s.replace(/[\u0000-\u001F\u007F-\u009F]/g, "").trim();
 }
 
+/**
+ * Effect to fetch pool details (token0, token1, fee)
+ */
+export const getPoolMetadataEffect = experimental_createEffect(
+    {
+        name: "getPoolMetadata",
+        input: { poolAddress: S.string, chainId: S.number },
+        output: { token0: S.string, token1: S.string, fee: S.number },
+        cache: true,
+    },
+    async ({ input }) => {
+        const { poolAddress, chainId } = input;
+        const client = getClient(chainId);
+
+        // We use allowFailure: false here so that if the RPC fails (rate limit, etc.), 
+        // the effect throws and the indexer retries. 
+        // We only catch if we want to return a 'NothingFound' state.
+        const [t0, t1, fee] = await client.multicall({
+            contracts: [
+                { address: poolAddress as `0x${string}`, abi: POOL_ABI, functionName: "token0" },
+                { address: poolAddress as `0x${string}`, abi: POOL_ABI, functionName: "token1" },
+                { address: poolAddress as `0x${string}`, abi: POOL_ABI, functionName: "fee" },
+            ],
+            allowFailure: false,
+        });
+
+        return {
+            token0: (t0 as string).toLowerCase(),
+            token1: (t1 as string).toLowerCase(),
+            fee: Number(fee),
+        };
+    }
+);
+
+/**
+ * Effect to fetch token names, symbols, and decimals
+ */
 export const getTokensMetadataEffect = experimental_createEffect(
     {
         name: "getTokensMetadata",
@@ -61,18 +110,8 @@ export const getTokensMetadataEffect = experimental_createEffect(
         const isNative0 = token0.toLowerCase() === ADDRESS_ZERO.toLowerCase();
         const isNative1 = token1.toLowerCase() === ADDRESS_ZERO.toLowerCase();
 
-        if (!clients[chainId]) {
-            const chain = chainId === 1 ? mainnet : chainId === 10 ? optimism : arbitrum;
-            clients[chainId] = createPublicClient({
-                chain,
-                transport: http(getRpcUrl(chainId)),
-            });
-        }
+        const client = getClient(chainId);
 
-        const client = clients[chainId];
-
-        // Advanced Multicall: We fetch raw bytes for name/symbol if possible, 
-        // but for now we use the multi-ABI approach which is most compatible.
         const contracts: any[] = [];
         const addCalls = (addr: string) => {
             contracts.push({ address: addr as `0x${string}`, abi: ERC20_ABI, functionName: "symbol" });
@@ -87,7 +126,8 @@ export const getTokensMetadataEffect = experimental_createEffect(
         try {
             results = await client.multicall({ contracts, allowFailure: true });
         } catch (err) {
-            // Fallback: If multicall entirely fails (unlikely), results will be empty
+            // Rethrow or return partial results to trigger retry if network error
+            throw err;
         }
 
         let resIdx = 0;
@@ -98,12 +138,10 @@ export const getTokensMetadataEffect = experimental_createEffect(
             const nRes = results[resIdx++];
             const dRes = results[resIdx++];
 
-            // Greedy decoding: try result, then try fallback slices if fails
             let sym = sRes?.status === "success" ? sanitize(sRes.result) : "";
             let nam = nRes?.status === "success" ? sanitize(nRes.result) : "";
             const dec = dRes?.status === "success" ? Number(dRes.result) : 18;
 
-            // If we still don't have a name, use the address slice as the name/symbol
             const identifier = addr.slice(2, 8).toUpperCase();
             if (!sym || sym.length < 1) sym = `TKN-${identifier}`;
             if (!nam || nam.length < 1) nam = `Token ${addr.slice(0, 10)}...`;

@@ -10,14 +10,15 @@ profile: "Dex"
 # These configurations specify where dbt should look for different types of files.
 # The `model-paths` config, for example, states that models in this project can be
 # found in the "models/" directory. You probably won't need to change these!
-model-paths: ["models"]
-analysis-paths: ["analyses"]
-test-paths: ["tests"]
-seed-paths: ["seeds"]
-macro-paths: ["macros"]
-snapshot-paths: ["snapshots"]
+model-paths: [ "models" ]
+analysis-paths: [ "analyses" ]
+test-paths: [ "tests" ]
+seed-paths: [ "seeds" ]
+macro-paths: [ "macros" ]
+snapshot-paths: [ "snapshots" ]
 
-clean-targets: # directories to be removed by `dbt clean`
+clean-targets:
+  # directories to be removed by `dbt clean`
   - "target"
   - "dbt_packages"
 
@@ -27,4 +28,17 @@ clean-targets: # directories to be removed by `dbt clean`
 models:
   Dex:
     staging:
+      money_market:
+        +enabled: false
       +materialized: view
+    intermediate:
+      dex_intermediate:
+        SOLIDLY_DEX:
+          +enabled: false
+        SUSHI_DEX:
+          +enabled: false
+      money_market_intermediate:
+        +enabled: false
+    marts:
+      fact_lending:
+        +enabled: false

@@ -4,12 +4,12 @@ sources:
   - name: dexSwap_v3
     schema: envio_v2
     database: tsdb
-    description: "Raw Uniswap V3 data ingested by Envio HyperIndex"
+    description: "Raw DEX V3 data ingested by Envio HyperIndex"
 
     tables:
       - name: Swap
         identifier: Swap
-        description: "Swap events from Uniswap V3 pools"
+        description: "Swap events from DEX V3 pools"
         columns:
           - name: id
             description: "Unique swap identifier (txHash-logIndex)"
@@ -38,6 +38,12 @@ sources:
 
           - name: recipient
             description: "Address that received the swap output"
+            data_type: text
+            data_tests:
+              - not_null
+
+          - name: txFrom
+            description: "Address initiated the transaction"
             data_type: text
             data_tests:
               - not_null
@@ -138,287 +144,290 @@ sources:
             data_tests:
               - not_null
 
-  - name: lending_borrowing_v3
-    schema: envio_lending
-    database: tsdb
-    description: "Raw Lending Borrowing data ingested by Envio HyperIndex"
-
-    tables:
-      - name: Supply
-        identifier: Supply
-        description: "Supply events from Lending protocols"
-        columns:
-          - name: id
-            data_type: text
-            data_tests: [not_null, unique]
-
-          - name: contractAddress
-            quote: true
-            data_type: text
-
-          - name: reserve
-            data_type: text
-
-          - name: reserveName
-            quote: true
-            data_type: text
-
-          - name: reserveSymbol
-            quote: true
-            data_type: text
-
-          - name: user
-            quote: true
-            data_type: text
-
-          - name: onBehalfOf
-            quote: true
-            data_type: text
-
-          - name: amount
+          - name: feeTier
+            description: "Fee tier of the pool (in hundredths of a bip)"
             data_type: numeric
-          - name: amountUSD
-            quote: true
-            data_type: numeric
-          - name: reserveDecimals
-            quote: true
-            data_type: integer
-          - name: referralCode
-            quote: true
-            data_type: integer
-          - name: timestamp
-            data_type: numeric
-          - name: transactionHash
-            quote: true
-            data_type: text
+  # - name: lending_borrowing_v3
+  #   schema: envio_lending
+  #   database: tsdb
+  #   description: "Raw Lending Borrowing data ingested by Envio HyperIndex"
 
-          - name: txFrom
-            quote: true
-            data_type: text
+  #   tables:
+  #     - name: Supply
+  #       identifier: Supply
+  #       description: "Supply events from Lending protocols"
+  #       columns:
+  #         - name: id
+  #           data_type: text
+  #           data_tests: [not_null, unique]
 
-          - name: txTo
-            quote: true
-            data_type: text
+  #         - name: contractAddress
+  #           quote: true
+  #           data_type: text
 
-          - name: blockNumber
-            quote: true
-            data_type: integer
-          - name: chainId
-            quote: true
-            data_type: integer
+  #         - name: reserve
+  #           data_type: text
 
-      - name: Borrow
-        identifier: Borrow
-        description: "Borrow events from Lending protocols"
-        columns:
-          - name: id
-            data_type: text
+  #         - name: reserveName
+  #           quote: true
+  #           data_type: text
 
-            data_tests: [not_null, unique]
-          - name: contractAddress
-            quote: true
-            data_type: text
+  #         - name: reserveSymbol
+  #           quote: true
+  #           data_type: text
 
-          - name: reserve
-            data_type: text
+  #         - name: user
+  #           quote: true
+  #           data_type: text
 
-          - name: reserveName
-            quote: true
-            data_type: text
+  #         - name: onBehalfOf
+  #           quote: true
+  #           data_type: text
 
-          - name: reserveSymbol
-            quote: true
-            data_type: text
+  #         - name: amount
+  #           data_type: numeric
+  #         - name: amountUSD
+  #           quote: true
+  #           data_type: numeric
+  #         - name: reserveDecimals
+  #           quote: true
+  #           data_type: integer
+  #         - name: referralCode
+  #           quote: true
+  #           data_type: integer
+  #         - name: timestamp
+  #           data_type: numeric
+  #         - name: transactionHash
+  #           quote: true
+  #           data_type: text
 
-          - name: user
-            quote: true
-            data_type: text
+  #         - name: txFrom
+  #           quote: true
+  #           data_type: text
 
-          - name: onBehalfOf
-            quote: true
-            data_type: text
+  #         - name: txTo
+  #           quote: true
+  #           data_type: text
 
-          - name: amount
-            data_type: numeric
-          - name: amountUSD
-            quote: true
-            data_type: numeric
-          - name: reserveDecimals
-            quote: true
-            data_type: integer
-          - name: interestRateMode
-            quote: true
-            data_type: integer
-          - name: borrowRate
-            quote: true
-            data_type: numeric
-          - name: referralCode
-            quote: true
-            data_type: integer
-          - name: timestamp
-            data_type: numeric
-          - name: transactionHash
-            quote: true
-            data_type: text
+  #         - name: blockNumber
+  #           quote: true
+  #           data_type: integer
+  #         - name: chainId
+  #           quote: true
+  #           data_type: integer
 
-          - name: txFrom
-            quote: true
-            data_type: text
+  #     - name: Borrow
+  #       identifier: Borrow
+  #       description: "Borrow events from Lending protocols"
+  #       columns:
+  #         - name: id
+  #           data_type: text
 
-          - name: txTo
-            quote: true
-            data_type: text
+  #           data_tests: [not_null, unique]
+  #         - name: contractAddress
+  #           quote: true
+  #           data_type: text
 
-          - name: blockNumber
-            quote: true
-            data_type: integer
-          - name: chainId
-            quote: true
-            data_type: integer
+  #         - name: reserve
+  #           data_type: text
 
-      - name: Repay
-        identifier: Repay
-        description: "Repay events from Lending protocols"
-        columns:
-          - name: id
-            data_type: text
+  #         - name: reserveName
+  #           quote: true
+  #           data_type: text
 
-            data_tests: [not_null, unique]
-          - name: contractAddress
-            quote: true
-            data_type: text
+  #         - name: reserveSymbol
+  #           quote: true
+  #           data_type: text
 
-          - name: reserve
-            data_type: text
+  #         - name: user
+  #           quote: true
+  #           data_type: text
 
-          - name: reserveName
-            quote: true
-            data_type: text
+  #         - name: onBehalfOf
+  #           quote: true
+  #           data_type: text
 
-          - name: reserveSymbol
-            quote: true
-            data_type: text
+  #         - name: amount
+  #           data_type: numeric
+  #         - name: amountUSD
+  #           quote: true
+  #           data_type: numeric
+  #         - name: reserveDecimals
+  #           quote: true
+  #           data_type: integer
+  #         - name: interestRateMode
+  #           quote: true
+  #           data_type: integer
+  #         - name: borrowRate
+  #           quote: true
+  #           data_type: numeric
+  #         - name: referralCode
+  #           quote: true
+  #           data_type: integer
+  #         - name: timestamp
+  #           data_type: numeric
+  #         - name: transactionHash
+  #           quote: true
+  #           data_type: text
 
-          - name: user
-            quote: true
-            data_type: text
+  #         - name: txFrom
+  #           quote: true
+  #           data_type: text
 
-          - name: repayer
-            data_type: text
+  #         - name: txTo
+  #           quote: true
+  #           data_type: text
 
-          - name: amount
-            data_type: numeric
-          - name: amountUSD
-            quote: true
-            data_type: numeric
-          - name: reserveDecimals
-            quote: true
-            data_type: integer
-          - name: useATokens
-            quote: true
-            data_type: boolean
-          - name: timestamp
-            data_type: numeric
-          - name: transactionHash
-            quote: true
-            data_type: text
+  #         - name: blockNumber
+  #           quote: true
+  #           data_type: integer
+  #         - name: chainId
+  #           quote: true
+  #           data_type: integer
 
-          - name: txFrom
-            quote: true
-            data_type: text
+  #     - name: Repay
+  #       identifier: Repay
+  #       description: "Repay events from Lending protocols"
+  #       columns:
+  #         - name: id
+  #           data_type: text
 
-          - name: txTo
-            quote: true
-            data_type: text
+  #           data_tests: [not_null, unique]
+  #         - name: contractAddress
+  #           quote: true
+  #           data_type: text
 
-          - name: blockNumber
-            quote: true
-            data_type: integer
-          - name: chainId
-            quote: true
-            data_type: integer
+  #         - name: reserve
+  #           data_type: text
 
-      - name: Liquidation
-        identifier: Liquidation
-        description: "Liquidation events from Lending protocols"
-        columns:
-          - name: id
-            data_type: text
+  #         - name: reserveName
+  #           quote: true
+  #           data_type: text
 
-            data_tests: [not_null, unique]
-          - name: contractAddress
-            quote: true
-            data_type: text
+  #         - name: reserveSymbol
+  #           quote: true
+  #           data_type: text
 
-          - name: collateralAsset
-            quote: true
-            data_type: text
+  #         - name: user
+  #           quote: true
+  #           data_type: text
 
-          - name: collateralAssetName
-            quote: true
-            data_type: text
+  #         - name: repayer
+  #           data_type: text
 
-          - name: collateralAssetSymbol
-            quote: true
-            data_type: text
+  #         - name: amount
+  #           data_type: numeric
+  #         - name: amountUSD
+  #           quote: true
+  #           data_type: numeric
+  #         - name: reserveDecimals
+  #           quote: true
+  #           data_type: integer
+  #         - name: useATokens
+  #           quote: true
+  #           data_type: boolean
+  #         - name: timestamp
+  #           data_type: numeric
+  #         - name: transactionHash
+  #           quote: true
+  #           data_type: text
 
-          - name: debtAsset
-            quote: true
-            data_type: text
+  #         - name: txFrom
+  #           quote: true
+  #           data_type: text
 
-          - name: debtAssetName
-            quote: true
-            data_type: text
+  #         - name: txTo
+  #           quote: true
+  #           data_type: text
 
-          - name: debtAssetSymbol
-            quote: true
-            data_type: text
+  #         - name: blockNumber
+  #           quote: true
+  #           data_type: integer
+  #         - name: chainId
+  #           quote: true
+  #           data_type: integer
 
-          - name: user
-            quote: true
-            data_type: text
+  #     - name: Liquidation
+  #       identifier: Liquidation
+  #       description: "Liquidation events from Lending protocols"
+  #       columns:
+  #         - name: id
+  #           data_type: text
 
-          - name: debtToCover
-            quote: true
-            data_type: numeric
-          - name: debtToCoverUSD
-            quote: true
-            data_type: numeric
-          - name: debtAssetDecimals
-            quote: true
-            data_type: integer
-          - name: liquidatedCollateralAmount
-            quote: true
-            data_type: numeric
-          - name: liquidatedCollateralAmountUSD
-            quote: true
-            data_type: numeric
-          - name: collateralAssetDecimals
-            quote: true
-            data_type: integer
-          - name: liquidator
-            data_type: text
+  #           data_tests: [not_null, unique]
+  #         - name: contractAddress
+  #           quote: true
+  #           data_type: text
 
-          - name: receiveAToken
-            quote: true
-            data_type: boolean
-          - name: timestamp
-            data_type: numeric
-          - name: transactionHash
-            quote: true
-            data_type: text
+  #         - name: collateralAsset
+  #           quote: true
+  #           data_type: text
 
-          - name: txFrom
-            quote: true
-            data_type: text
+  #         - name: collateralAssetName
+  #           quote: true
+  #           data_type: text
 
-          - name: txTo
-            quote: true
-            data_type: text
+  #         - name: collateralAssetSymbol
+  #           quote: true
+  #           data_type: text
 
-          - name: blockNumber
-            quote: true
-            data_type: integer
-          - name: chainId
-            quote: true
-            data_type: integer
+  #         - name: debtAsset
+  #           quote: true
+  #           data_type: text
+
+  #         - name: debtAssetName
+  #           quote: true
+  #           data_type: text
+
+  #         - name: debtAssetSymbol
+  #           quote: true
+  #           data_type: text
+
+  #         - name: user
+  #           quote: true
+  #           data_type: text
+
+  #         - name: debtToCover
+  #           quote: true
+  #           data_type: numeric
+  #         - name: debtToCoverUSD
+  #           quote: true
+  #           data_type: numeric
+  #         - name: debtAssetDecimals
+  #           quote: true
+  #           data_type: integer
+  #         - name: liquidatedCollateralAmount
+  #           quote: true
+  #           data_type: numeric
+  #         - name: liquidatedCollateralAmountUSD
+  #           quote: true
+  #           data_type: numeric
+  #         - name: collateralAssetDecimals
+  #           quote: true
+  #           data_type: integer
+  #         - name: liquidator
+  #           data_type: text
+
+  #         - name: receiveAToken
+  #           quote: true
+  #           data_type: boolean
+  #         - name: timestamp
+  #           data_type: numeric
+  #         - name: transactionHash
+  #           quote: true
+  #           data_type: text
+
+  #         - name: txFrom
+  #           quote: true
+  #           data_type: text
+
+  #         - name: txTo
+  #           quote: true
+  #           data_type: text
+
+  #         - name: blockNumber
+  #           quote: true
+  #           data_type: integer
+  #         - name: chainId
+  #           quote: true
+  #           data_type: integer

@@ -19,7 +19,7 @@ export function sqrtPriceX96ToTokenPrices(
     const t1Dec = token1.id.split("-")[1] === ADDRESS_ZERO
         ? nativeTokenDetails.decimals : token1.decimals;
 
-    const num   = new BigDecimal((sqrtPriceX96 * sqrtPriceX96).toString());
+    const num = new BigDecimal((sqrtPriceX96 * sqrtPriceX96).toString());
     const denom = new BigDecimal(Q192.toString());
 
     // price1 = token0/token1 adjusted for decimals
@@ -43,7 +43,7 @@ export async function getNativePriceInUSD(
     stablecoinIsToken0: boolean
 ): Promise<BigDecimal> {
     const poolId = `${chainId}-${stablecoinWrappedNativePoolId}`;
-    const pool   = await context.Pool.get(poolId);
+    const pool = await context.Pool.get(poolId);
     if (!pool) return ZERO_BD;
     return stablecoinIsToken0 ? pool.token0Price : pool.token1Price;
 }
@@ -76,8 +76,9 @@ export async function findNativePerToken(
 
     // Walk whitelist pools to find largest ETH-locked pool
     const pools = await Promise.all(
-        token.whitelistPools.map(id => context.Pool.get(id))
+        (token.whitelistPools || []).map(id => context.Pool.get(id))
     );
+
 
     let largestETH = ZERO_BD;
     let priceSoFar = ZERO_BD;

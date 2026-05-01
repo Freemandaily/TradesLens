@@ -52,6 +52,7 @@ staged as (
         "gasPrice",
         sender,
         recipient,
+        "txFrom",
         -- Raw and normalized amounts
         amount0,
         amount1,
@@ -78,12 +79,12 @@ enriched_swaps as (
         "gasPrice",
         sender,
         recipient,
+        "txFrom",
         amount0,
         amount1,
         "amountUSD",
         token0,
         token1,
-
         pool,
         "sqrtPriceX96",
         tick,

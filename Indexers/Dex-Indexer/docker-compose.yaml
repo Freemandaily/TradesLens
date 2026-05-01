@@ -1,8 +1,27 @@
 services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${ENVIO_PG_USER:-postgres}
+      POSTGRES_PASSWORD: ${ENVIO_PG_PASSWORD:-postgrespassword}
+      POSTGRES_DB: ${ENVIO_PG_DATABASE:-postgres}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - my-proxy-net
+
   graphql-engine:
     image: hasura/graphql-engine:v2.43.0
     ports:
-      - "8080:8080"
+      - "8081:8080"
     restart: always
     environment:
       HASURA_GRAPHQL_DATABASE_URL: ${HASURA_GRAPHQL_DATABASE_URL}
@@ -18,6 +37,9 @@ services:
       timeout: 5s
       retries: 60
       start_period: 60s
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - my-proxy-net
 
@@ -36,10 +58,15 @@ services:
     env_file:
       - .env
     depends_on:
+      db:
+        condition: service_healthy
       graphql-engine:
         condition: service_healthy
     networks:
       - my-proxy-net
+
+volumes:
+  db_data:
 
 networks:
   my-proxy-net:

@@ -1,44 +1,176 @@
 import {
     UniswapV3Pool,
-    SolidlyV3Pool,
-    SushiV3Pool,
     BigDecimal,
     Swap,
 } from "generated";
 import { CHAIN_CONFIGS } from "./utils/chains";
 import { ONE_BI, ZERO_BI, ZERO_BD } from "./utils/constants";
-import { convertTokenToDecimal, loadTransaction, safeDiv } from "./utils/index";
+import { convertTokenToDecimal, loadTransaction } from "./utils/index";
 import {
     sqrtPriceX96ToTokenPrices,
     getNativePriceInUSD,
     findNativePerToken,
     getTrackedAmountUSD,
 } from "./utils/pricing";
+import { getTokensMetadataEffect, getPoolMetadataEffect } from "./utils/getTokensMetadataEffect";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pool Registry (Bootstrapped from Dune)
+// ─────────────────────────────────────────────────────────────────────────────
+let poolReg: Record<string, any> = {};
+try {
+    poolReg = require("./utils/poolReg.json");
+} catch (e) {
+    console.warn("[Pool] No pre-loaded pool registry found. Falling back to RPC discovery.");
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared state helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-const getBaseEntities = async (context: any, chainId: number, poolRO: any) => {
-    const [bundleRO, token0RO, token1RO] = await Promise.all([
+const getOrCreatePoolAndTokens = async (context: any, chainId: number, poolAddress: string) => {
+    const poolId = `${chainId}-${poolAddress.toLowerCase()}`;
+    let poolEntity: any = await context.Pool.get(poolId);
+
+    // If pool is missing (Cold Start for static addresses), check registry then RPC
+    if (!poolEntity) {
+        const regEntry = poolReg[poolId];
+        let meta: any;
+
+        if (regEntry) {
+            // Instant discovery from Dune data!
+            meta = {
+                token0: regEntry.t0,
+                token1: regEntry.t1,
+                fee: regEntry.fee,
+                reg: regEntry // keep for token metadata
+            };
+        } else {
+            // Fallback to RPC discovery
+            meta = await context.effect(getPoolMetadataEffect, {
+                poolAddress,
+                chainId,
+            });
+        }
+
+        const t0_id = `${chainId}-${meta.token0.toLowerCase()}`;
+        const t1_id = `${chainId}-${meta.token1.toLowerCase()}`;
+
+        // Ensure Bundle exists
+        let bundle_pre = await context.Bundle.get(chainId.toString());
+        if (!bundle_pre) {
+            context.Bundle.set({ id: chainId.toString(), ethPriceUSD: ZERO_BD });
+        }
+
+        // Create Token entities helper
+        const createTkn = (id: string, symbol = "...", name = "...", decimals = 18n, fetched = false) => ({
+            id, symbol, name, decimals,
+            isMetadataFetched: fetched,
+            isWhitelisted: false,
+            volume: ZERO_BD,
+            volumeUSD: ZERO_BD,
+            untrackedVolumeUSD: ZERO_BD,
+            feesUSD: ZERO_BD,
+            txCount: ZERO_BI,
+            poolCount: ZERO_BI,
+            totalValueLocked: ZERO_BD,
+            totalValueLockedUSD: ZERO_BD,
+            totalValueLockedUSDUntracked: ZERO_BD,
+            derivedETH: ZERO_BD,
+            whitelistPools: [] as string[],
+        });
+
+        let t0_ent = await context.Token.get(t0_id);
+        if (!t0_ent) {
+            const sym = meta.reg?.t0Meta?.symbol || "...";
+            const dec = meta.reg?.t0Meta?.decimals ? BigInt(meta.reg.t0Meta.decimals) : 18n;
+            context.Token.set(createTkn(t0_id, sym, sym, dec, !!meta.reg));
+        }
+
+        let t1_ent = await context.Token.get(t1_id);
+        if (!t1_ent) {
+            const sym = meta.reg?.t1Meta?.symbol || "...";
+            const dec = meta.reg?.t1Meta?.decimals ? BigInt(meta.reg.t1Meta.decimals) : 18n;
+            context.Token.set(createTkn(t1_id, sym, sym, dec, !!meta.reg));
+        }
+
+        poolEntity = {
+            id: poolId,
+            dex: "UniswapV3",
+            token0_id: t0_id,
+            token1_id: t1_id,
+            feeTier: BigInt(meta.fee),
+            sqrtPrice: ZERO_BI,
+            liquidity: ZERO_BI,
+            tick: ZERO_BI,
+            observationIndex: ZERO_BI,
+            token0Price: ZERO_BD,
+            token1Price: ZERO_BD,
+            volumeToken0: ZERO_BD,
+            volumeToken1: ZERO_BD,
+            volumeUSD: ZERO_BD,
+            untrackedVolumeUSD: ZERO_BD,
+            feesUSD: ZERO_BD,
+            collectedFeesToken0: ZERO_BD,
+            collectedFeesToken1: ZERO_BD,
+            collectedFeesUSD: ZERO_BD,
+            txCount: ZERO_BI,
+            totalValueLockedToken0: ZERO_BD,
+            totalValueLockedToken1: ZERO_BD,
+            totalValueLockedETH: ZERO_BD,
+            totalValueLockedUSD: ZERO_BD,
+            totalValueLockedUSDUntracked: ZERO_BD,
+            liquidityProviderCount: ZERO_BI,
+            createdAtTimestamp: ZERO_BI,
+            createdAtBlockNumber: ZERO_BI,
+        };
+        context.Pool.set(poolEntity);
+    }
+
+    let [b_ro, t0_ro, t1_ro]: any[] = await Promise.all([
         context.Bundle.get(chainId.toString()),
-        context.Token.get(poolRO.token0_id),
-        context.Token.get(poolRO.token1_id),
+        context.Token.get(poolEntity.token0_id),
+        context.Token.get(poolEntity.token1_id),
     ]);
 
-    if (!bundleRO || !token0RO || !token1RO) {
-        return null;
+    if (!b_ro || !t0_ro || !t1_ro) return null;
+
+    let t0_final = { ...t0_ro };
+    let t1_final = { ...t1_ro };
+
+    // Dynamically fetch metadata IF still missing (not in Dune or registry)
+    if (!t0_final.isMetadataFetched || !t1_final.isMetadataFetched) {
+        const results: any = await context.effect(getTokensMetadataEffect, {
+            token0: t0_final.id.split('-')[1],
+            token1: t1_final.id.split('-')[1],
+            chainId,
+        });
+
+        if (!t0_final.isMetadataFetched && results.meta0) {
+            t0_final.symbol = results.meta0.symbol;
+            t0_final.name = results.meta0.name;
+            t0_final.decimals = BigInt(results.meta0.decimals);
+            t0_final.isMetadataFetched = true;
+            context.Token.set(t0_final);
+        }
+        if (!t1_final.isMetadataFetched && results.meta1) {
+            t1_final.symbol = results.meta1.symbol;
+            t1_final.name = results.meta1.name;
+            t1_final.decimals = BigInt(results.meta1.decimals);
+            t1_final.isMetadataFetched = true;
+            context.Token.set(t1_final);
+        }
     }
 
     return {
-        bundle: { ...bundleRO },
-        token0: { ...token0RO },
-        token1: { ...token1RO },
-        pool: { ...poolRO }
+        bundle: { ...b_ro },
+        token0: t0_final,
+        token1: t1_final,
+        pool: { ...poolEntity }
     };
 };
 
-const updatePricesAndBundle = async (context: any, chainId: number, event: any, bundle: any, cfg: any) => {
+const updatePricesAndBundle = async (context: any, chainId: number, bundle: any, cfg: any) => {
     const newEthPriceUSD = await getNativePriceInUSD(
         context, chainId,
         cfg.stablecoinWrappedNativePoolId,
@@ -55,19 +187,12 @@ const updatePricesAndBundle = async (context: any, chainId: number, event: any, 
 // Core Handlers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Initialize handler — sets the starting price/tick for the pool
- */
 const handleInitialize = async ({ event, context }: any) => {
     const chainId = event.chainId;
     const cfg = CHAIN_CONFIGS[chainId];
     if (!cfg) return;
 
-    const poolId = `${chainId}-${event.srcAddress.toLowerCase()}`;
-    const poolRO = await context.Pool.get(poolId);
-    if (!poolRO) return;
-
-    const entities = await getBaseEntities(context, chainId, poolRO);
+    const entities: any = await getOrCreatePoolAndTokens(context, chainId, event.srcAddress);
     if (!entities) return;
 
     const { bundle, token0, token1, pool } = entities;
@@ -80,10 +205,12 @@ const handleInitialize = async ({ event, context }: any) => {
     pool.tick = event.params.tick;
     pool.token0Price = prices[0];
     pool.token1Price = prices[1];
+    pool.createdAtTimestamp = event.block.timestamp;
+    pool.createdAtBlockNumber = event.block.number;
 
     context.Pool.set(pool);
 
-    await updatePricesAndBundle(context, chainId, event, bundle, cfg);
+    await updatePricesAndBundle(context, chainId, bundle, cfg);
 
     [token0.derivedETH, token1.derivedETH] = await Promise.all([
         findNativePerToken(context, token0, bundle, cfg.wrappedNativeAddress, cfg.stablecoinAddresses, cfg.minimumNativeLocked),
@@ -99,32 +226,9 @@ const handleSwap = async ({ event, context }: any, dexName: string) => {
     const cfg = CHAIN_CONFIGS[chainId];
     if (!cfg) return;
 
-    const poolId = `${chainId}-${event.srcAddress.toLowerCase()}`;
-    const poolRO = await context.Pool.get(poolId);
-
-    // ── BOOTSTRAP STRATEGY ──────────────────────────────────────────────────
-    if (!poolRO) {
-        if (event.srcAddress.toLowerCase() === cfg.stablecoinWrappedNativePoolId.toLowerCase()) {
-            const bundleRO = await context.Bundle.get(chainId.toString());
-            const bundleTemp = bundleRO ? { ...bundleRO } : { id: chainId.toString(), ethPriceUSD: ZERO_BD };
-
-            const t0Decimals = cfg.stablecoinIsToken0 ? cfg.stablecoinDecimals : 18n; // Typically stablecoin (6 or 18) and WETH(18)
-            const t1Decimals = cfg.stablecoinIsToken0 ? 18n : cfg.stablecoinDecimals;
-            const pricesRS = sqrtPriceX96ToTokenPrices(
-                event.params.sqrtPriceX96,
-                { id: "0-bootstrap-0", decimals: t0Decimals } as any,
-                { id: "0-bootstrap-1", decimals: t1Decimals } as any,
-                cfg.nativeTokenDetails
-            );
-            bundleTemp.ethPriceUSD = cfg.stablecoinIsToken0 ? pricesRS[0] : pricesRS[1];
-            context.Bundle.set(bundleTemp);
-        }
-        return;
-    }
-
     if (cfg.poolsToSkip.includes(event.srcAddress.toLowerCase())) return;
 
-    const entities = await getBaseEntities(context, chainId, poolRO);
+    const entities: any = await getOrCreatePoolAndTokens(context, chainId, event.srcAddress);
     if (!entities) return;
 
     const { bundle, token0, token1, pool } = entities;
@@ -173,7 +277,7 @@ const handleSwap = async ({ event, context }: any, dexName: string) => {
 
     context.Pool.set(pool);
 
-    await updatePricesAndBundle(context, chainId, event, bundle, cfg);
+    await updatePricesAndBundle(context, chainId, bundle, cfg);
 
     [token0.derivedETH, token1.derivedETH] = await Promise.all([
         findNativePerToken(context, token0, bundle, cfg.wrappedNativeAddress, cfg.stablecoinAddresses, cfg.minimumNativeLocked),
@@ -198,7 +302,7 @@ const handleSwap = async ({ event, context }: any, dexName: string) => {
     pool.totalValueLockedUSD = pool.totalValueLockedETH.times(bundle.ethPriceUSD);
 
     token0.totalValueLockedUSD =
-        token0.totalValueLocked.times(token0.derivedETH).times(bundle.ethPriceUSD);
+        token1.totalValueLocked.times(token1.derivedETH).times(bundle.ethPriceUSD);
     token1.totalValueLockedUSD =
         token1.totalValueLocked.times(token1.derivedETH).times(bundle.ethPriceUSD);
 
@@ -216,6 +320,8 @@ const handleSwap = async ({ event, context }: any, dexName: string) => {
         event.block.number,
         ts,
         event.transaction.gasPrice || ZERO_BI,
+        event.transaction.from || "",
+        event.transaction.to || "",
         context
     );
 
@@ -230,6 +336,8 @@ const handleSwap = async ({ event, context }: any, dexName: string) => {
         sender: event.params.sender,
         recipient: event.params.recipient,
         origin: event.transaction.from?.toLowerCase() || '',
+        txFrom: event.transaction.from || "",
+        txTo: event.transaction.to || "",
         amount0,
         amount1,
         amountUSD: amountUSDFinal,
@@ -250,14 +358,5 @@ const handleSwap = async ({ event, context }: any, dexName: string) => {
 // Register handlers
 // ─────────────────────────────────────────────────────────────────────────────
 
-// UniswapV3
 UniswapV3Pool.Initialize.handler((args) => handleInitialize(args));
 UniswapV3Pool.Swap.handler((args) => handleSwap(args, "UniswapV3"));
-
-// SolidlyV3
-SolidlyV3Pool.Initialize.handler((args) => handleInitialize(args));
-SolidlyV3Pool.Swap.handler((args) => handleSwap(args, "SolidlyV3"));
-
-// SushiV3
-SushiV3Pool.Initialize.handler((args) => handleInitialize(args));
-SushiV3Pool.Swap.handler((args) => handleSwap(args, "SushiV3"));

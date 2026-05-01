@@ -1,0 +1,24 @@
+Dex:
+  target: dev
+  outputs:
+    dev:
+      dbname: envio-dev
+      host: envio-postgres
+      pass: testing
+      port: 5432
+      schema: envio_dev
+      threads: 4
+      type: postgres
+      user: postgres
+      # sslmode: disable
+
+    prod:
+      dbname: tsdb
+      host: # add your tsdb host here
+      pass: # add your tsdb password here
+      port: # add your tsdb port here
+      schema: envio_prod
+      threads: 4
+      type: postgres
+      user: #
+      sslmode: require

@@ -15,6 +15,7 @@ type Token {
   symbol: String!
   name: String!
   decimals: BigInt! @config(precision: 78) @index
+  isMetadataFetched: Boolean! @index
   isWhitelisted: Boolean! @index
   volume: BigDecimal!
   volumeUSD: BigDecimal!
@@ -76,6 +77,8 @@ type Transaction {
   timestamp: BigInt! @index
   gasUsed: BigInt!
   gasPrice: BigInt!
+  from: Bytes! @index
+  to: Bytes! @index
   swaps: [Swap!]! @derivedFrom(field: "transaction")
 }
 
@@ -94,6 +97,8 @@ type Swap {
   sender: Bytes! @index
   recipient: Bytes! @index
   origin: Bytes! @index
+  txFrom: Bytes! @index
+  txTo: Bytes! @index
   amount0: BigDecimal!
   amount1: BigDecimal!
   # USD value of the swap
