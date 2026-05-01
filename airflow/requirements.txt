@@ -1,0 +1,4 @@
+sqlalchemy
+dbt-postgres
+pydantic
+pydantic-settings
