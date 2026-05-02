@@ -13,12 +13,12 @@ Dex:
       # sslmode: disable
 
     prod:
-      dbname: tsdb
-      host: # add your tsdb host here
-      pass: # add your tsdb password here
-      port: # add your tsdb port here
+      dbname: "{{ env_var('PROD_DB_NAME') }}"
+      host: "{{ env_var('ENVIO_PG_HOST') }}"
+      pass: "{{ env_var('ENVIO_PG_PASSWORD') }}"
+      port: "{{ env_var('ENVIO_PG_PORT') | int }}"
       schema: envio_prod
       threads: 4
       type: postgres
-      user: #
+      user: "{{ env_var('ENVIO_PG_USER') }}"
       sslmode: require
