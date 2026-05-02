@@ -82,7 +82,7 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-../model}:/opt/airflow/model
   networks:
     - default
-    - local_test_network
+    # - local_test_network
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on: &airflow-common-depends-on
     postgres:
@@ -346,6 +346,6 @@ services:
 volumes:
   postgres-db-volume:
 
-networks:
-  local_test_network:
-    external: true
+    # networks:
+    #   local_test_network:
+    #     external: true
