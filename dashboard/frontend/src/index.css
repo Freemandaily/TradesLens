@@ -63,3 +63,22 @@
 .animate-spin-fast {
     animation: spin 1s linear infinite;
 }
+
+@keyframes rowFlash {
+    0% { background: rgba(59, 130, 246, 0.15); }
+    100% { background: transparent; }
+}
+
+.animate-row-flash {
+    animation: rowFlash 2s ease-out;
+}
+
+@keyframes livePulse {
+    0% { transform: scale(0.9); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.5; }
+}
+
+.animate-live-pulse {
+    animation: livePulse 2s infinite;
+}

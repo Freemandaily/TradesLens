@@ -3,6 +3,10 @@ name: Deploy to EC2
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - "airflow/**"
+      - "model/**"
+      - ".github/workflows/deploy.yml"
 
 jobs:
   deploy:

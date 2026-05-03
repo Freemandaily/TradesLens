@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import axios from "axios";
 import uniLogo from "./assets/uniswap.png";
 import sushiLogo from "./assets/sushiswap.png";
@@ -34,7 +34,9 @@ import {
   Hash,
   Coins,
   Globe,
-  PlusCircle
+  PlusCircle,
+  Leaf,
+  Flame
 } from "lucide-react";
 
 // ── Design tokens ──────────────────────────────────────────────────────────
@@ -75,7 +77,22 @@ const CHAINS = ["Ethereum", "Arbitrum", "Optimism"];
 const EXPLORERS = {
   "Ethereum": "https://etherscan.io/tx/",
   "Arbitrum": "https://arbiscan.io/tx/",
-  "Optimism": "https://optimistic.etherscan.io/tx/"
+  "Optimism": "https://optimistic.etherscan.io/tx/",
+  "Base": "https://basescan.org/tx/"
+};
+
+const TOKEN_EXPLORERS = {
+  "Ethereum": "https://etherscan.io/token/",
+  "Arbitrum": "https://arbiscan.io/token/",
+  "Optimism": "https://optimistic.etherscan.io/token/",
+  "Base": "https://basescan.org/token/"
+};
+
+const ADDRESS_EXPLORERS = {
+  "Ethereum": "https://etherscan.io/address/",
+  "Arbitrum": "https://arbiscan.io/address/",
+  "Optimism": "https://optimistic.etherscan.io/address/",
+  "Base": "https://basescan.org/address/"
 };
 
 const CHAIN_COLORS = {
@@ -83,6 +100,20 @@ const CHAIN_COLORS = {
   "Arbitrum": "#28A0F0",
   "Optimism": "#FF0420",
   "Base": "#0052FF"
+};
+
+const NAV = [
+  { id: "overview", label: "Overview", icon: BarChart3 },
+  { id: "ethereum", label: "Ethereum", logo: "https://cryptologos.cc/logos/ethereum-eth-logo.svg?v=025", color: "#627EEA" },
+  { id: "arbitrum", label: "Arbitrum", logo: "https://cryptologos.cc/logos/arbitrum-arb-logo.svg?v=025", color: "#28A0F0" },
+  { id: "optimism", label: "Optimism", logo: "https://cryptologos.cc/logos/optimism-ethereum-op-logo.svg?v=025", color: "#FF0420" },
+];
+
+const GECKO_MAP = {
+  "Ethereum": "eth",
+  "Arbitrum": "arbitrum",
+  "Optimism": "optimism",
+  "Base": "base"
 };
 
 // ── Shared primitives ──────────────────────────────────────────────────────
@@ -101,15 +132,456 @@ const fmtNum = (n) => {
   return n.toLocaleString();
 };
 
-const getAge = (timestamp) => {
-  if (!timestamp) return "-";
-  const now = new Date();
-  const diff = Math.floor((now - new Date(timestamp)) / 1000);
-  if (diff < 60) return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+const getAge = (ts) => {
+  const diff = Date.now() - new Date(ts).getTime();
+  const sec = Math.floor(diff / 1000);
+
+  if (sec < 60) return `${sec}s ago`;
+
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ${sec % 60}s ago`;
+
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ${min % 60}m ago`;
+
+  const days = Math.floor(hr / 24);
+  if (days < 30) return `${days}d ${hr % 24}h ago`;
+
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ${days % 30}d ago`;
+
+  const years = Math.floor(days / 365);
+  return `${years}y ${months % 12}mo ago`;
 };
+
+const PriceValue = ({ val }) => {
+  const num = parseFloat(val);
+  if (!num) return "0.00";
+
+  const str = num.toFixed(12);
+  const match = str.match(/^0\.0+/);
+  if (match && match[0].length > 4) {
+    const zeroCount = match[0].length - 2;
+    const remaining = str.slice(match[0].length).slice(0, 4);
+    return (
+      <span style={{ display: "inline-flex", alignItems: "baseline" }}>
+        0.0<sub style={{ fontSize: "0.6em", fontWeight: 700, margin: "0 1px" }}>{zeroCount}</sub>{remaining}
+      </span>
+    );
+  }
+  return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
+};
+function TrendingTicker({ items, onPoolClick, chain }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div className="no-scrollbar" style={{
+      display: "flex", alignItems: "center", gap: 20, overflowX: "auto",
+      padding: "10px 16px", background: "#050505", borderBottom: `1px solid ${C.border}`,
+      marginLeft: -32, marginRight: -32, marginTop: -32, marginBottom: 0
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingRight: 16, borderRight: `1px solid ${C.border}` }}>
+        <span style={{ fontSize: 12 }}>🔥</span>
+      </div>
+      {items.map((item, i) => {
+        const change = item.price_change_24h || 0;
+        const isPos = change >= 0;
+        return (
+          <div
+            key={i}
+            onClick={() => onPoolClick && onPoolClick({ pool_address: item.pool_address, chain, pair: item.pair })}
+            style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", cursor: "pointer" }}
+          >
+            <div style={{
+              background: "rgba(99, 102, 241, 0.15)", color: "#818cf8", fontSize: 10,
+              fontWeight: 900, padding: "2px 6px", borderRadius: 4, border: "1px solid rgba(99, 102, 241, 0.3)"
+            }}>
+              {i + 1}
+            </div>
+            {item.image_url && (
+              <img src={item.image_url} style={{ width: 18, height: 18, borderRadius: "50%" }} alt="t" />
+            )}
+            <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{item.symbol}</span>
+            <span style={{ fontSize: 11, fontWeight: 800, color: isPos ? C.green : C.red }}>
+              {isPos ? "+" : ""}{change.toFixed(2)}%
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PoolSidebar({ data, loading, chain }) {
+  if (loading) return (
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 16, height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center" }}>
+        <div className="animate-spin-slow" style={{ width: 32, height: 32, border: `2px solid ${C.border}`, borderTop: `2px solid ${C.uni}`, borderRadius: "50%", margin: "0 auto 16px" }} />
+        <div style={{ fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase" }}>Analyzing Pool...</div>
+      </div>
+    </div>
+  );
+
+  if (!data || !data.data) return null;
+  const attr = data.data.attributes;
+  if (!attr) return null;
+  const token = data.included?.find(i => i.type === "token")?.attributes;
+
+  const Metric = ({ label, value }) => (
+    <div style={{ background: "#111318", padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ fontSize: 9, color: C.muted, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.02em" }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 900, color: "#fff" }}>{value}</div>
+    </div>
+  );
+
+  const ChangeBox = ({ label, val }) => {
+    const isPos = parseFloat(val) >= 0;
+    return (
+      <div style={{ textAlign: "center", padding: "4px 2px", background: "#111318", borderRadius: 6, border: `1px solid ${C.border}` }}>
+        <div style={{ fontSize: 8, color: C.muted, fontWeight: 800, marginBottom: 1 }}>{label}</div>
+        <div style={{ fontSize: 10, fontWeight: 900, color: isPos ? C.green : C.red }}>
+          {isPos ? "+" : ""}{parseFloat(val).toFixed(1)}%
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, height: "100%" }}>
+      {/* Identity & Links */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: "14px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: "#000", border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+            {token?.image_url ? <img src={token.image_url} style={{ width: "100%", height: "100%" }} alt="logo" /> : <Coins size={20} color={C.dim} />}
+          </div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
+              {token?.symbol || "TOKEN"} / {attr.name.split(" / ")[1]?.split(" ")[0]}
+              <span style={{ fontSize: 10, color: C.green, display: "flex", alignItems: "center", gap: 4 }}>
+                <Leaf size={10} /> {getAge(attr.pool_created_at).split(" ")[0]}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: C.muted, display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+              <img src={NAV.find(c => c.label === chain)?.logo} style={{ width: 14, height: 14, borderRadius: "50%" }} alt="chain" />
+              {chain}
+              <ChevronRight size={12} />
+              <img src="https://cryptologos.cc/logos/uniswap-uni-logo.svg?v=025" style={{ width: 14, height: 14 }} alt="dex" />
+              <span>Uniswap</span>
+              <span style={{ fontSize: 9, padding: "1px 4px", border: `1px solid ${C.border}`, borderRadius: 4, marginLeft: 2, fontWeight: 800 }}>
+                {data?.data?.relationships?.dex?.data?.id?.split("_")?.[1]?.toUpperCase() || "V3"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
+          <a
+            href={data?.metadata?.[0]?.attributes?.websites?.[0] || "#"}
+            target="_blank"
+            rel="noreferrer"
+            style={{ textDecoration: "none", background: "#111318", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px", color: data?.metadata?.[0]?.attributes?.websites?.[0] ? "#fff" : C.dim, fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+          >
+            <Globe size={14} /> Website
+          </a>
+          <a
+            href={data?.metadata?.[0]?.attributes?.twitter_handle ? `https://twitter.com/${data.metadata[0].attributes.twitter_handle}` : "#"}
+            target="_blank"
+            rel="noreferrer"
+            style={{ textDecoration: "none", background: "#111318", border: `1px solid ${C.border}`, borderRadius: 8, padding: "6px", color: data?.metadata?.[0]?.attributes?.twitter_handle ? "#fff" : C.dim, fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+          >
+            <Twitter size={14} /> Twitter
+          </a>
+        </div>
+      </div>
+
+      {/* Primary Metrics */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: "14px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, paddingBottom: 10, borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ flex: 1, background: "#111318", padding: "8px", borderRadius: 8, border: `1px solid ${C.border}`, textAlign: "center" }}>
+            <div style={{ fontSize: 8, color: C.muted, fontWeight: 800, textTransform: "uppercase", marginBottom: 4 }}>Price USD</div>
+            <div style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>
+              $<PriceValue val={attr.base_token_price_usd} />
+            </div>
+          </div>
+          <div style={{ flex: 1, background: "#111318", padding: "8px", borderRadius: 8, border: `1px solid ${C.border}`, textAlign: "center" }}>
+            <div style={{ fontSize: 8, color: C.muted, fontWeight: 800, textTransform: "uppercase", marginBottom: 4 }}>Price</div>
+            <div style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>
+              <PriceValue val={attr.base_token_price_quote_token} /> {attr.name.split(" / ")[1]?.split(" ")[0]}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          <Metric label="Liq" value={fmt(parseFloat(attr.reserve_in_usd))} />
+          <Metric label="FDV" value={fmt(parseFloat(attr.fdv_usd))} />
+          <Metric label="Cap" value={attr.market_cap_usd ? fmt(parseFloat(attr.market_cap_usd)) : "N/A"} />
+          <Metric label="Vol" value={fmt(parseFloat(attr.volume_usd.h24))} />
+        </div>
+      </div>
+
+      {/* Performance Grid */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: "12px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+          <ChangeBox label="5M" val={attr.price_change_percentage.m5} />
+          <ChangeBox label="1H" val={attr.price_change_percentage.h1} />
+          <ChangeBox label="6H" val={attr.price_change_percentage.h6} />
+          <ChangeBox label="24H" val={attr.price_change_percentage.h24} />
+        </div>
+      </div>
+
+      {/* Pair Details Section (Based on Screenshot) */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: "14px", display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 8, borderBottom: `1px solid ${C.border}` }}>
+          <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>Pair created</span>
+          <span style={{ fontSize: 12, color: "#fff", fontWeight: 800 }}>{getAge(attr.pool_created_at)}</span>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+          <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>Pooled {token?.symbol}</span>
+          <div style={{ textAlign: "right" }}>
+            <span style={{ fontSize: 12, color: "#fff", fontWeight: 800 }}>{fmtNum(parseFloat(attr.reserve_in_usd) / 2 / parseFloat(attr.base_token_price_usd))}</span>
+            <span style={{ fontSize: 11, color: C.muted, marginLeft: 6 }}>{fmt(parseFloat(attr.reserve_in_usd) / 2)}</span>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+          <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>Pooled {attr.name.split(" / ")[1]?.split(" ")[0]}</span>
+          <div style={{ textAlign: "right" }}>
+            <span style={{ fontSize: 12, color: "#fff", fontWeight: 800 }}>{fmtNum(parseFloat(attr.reserve_in_usd) / 2 / parseFloat(attr.quote_token_price_usd))}</span>
+            <span style={{ fontSize: 11, color: C.muted, marginLeft: 6 }}>{fmt(parseFloat(attr.reserve_in_usd) / 2)}</span>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 4, display: "flex", flexDirection: "column" }}>
+          {[
+            { label: "Pair", addr: attr.address, type: "address" },
+            { label: token?.symbol, addr: token?.address, type: "token" },
+            { label: attr.name.split(" / ")[1]?.split(" ")[0], addr: data.data.relationships.quote_token.data.id.split("_")[1], type: "token" }
+          ].map((item, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < 2 ? `1px solid ${C.border}` : "none" }}>
+              <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{item.label}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#111318", padding: "3px 8px", borderRadius: 6, border: `1px solid ${C.border}` }}>
+                <span style={{ fontSize: 10, color: "#fff", fontFamily: "monospace" }}>{item.addr?.slice(0, 6)}...{item.addr?.slice(-4)}</span>
+                <div style={{ width: 1, height: 10, background: C.border }} />
+                <a href={`${ADDRESS_EXPLORERS[chain] || "https://etherscan.io/address/"}${item.addr}`} target="_blank" rel="noreferrer" style={{ color: C.dim }}><ExternalLink size={10} /></a>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Security Check */}
+    </div>
+  );
+}
+
+function PoolDetails({ pool, onBack, onPoolClick }) {
+  const [swaps, setSwaps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [poolInfo, setPoolInfo] = useState(null);
+  const [infoLoading, setInfoLoading] = useState(true);
+  const [updatedIds, setUpdatedIds] = useState(new Set());
+  const [trendingItems, setTrendingItems] = useState([]);
+
+  useEffect(() => {
+    if (!pool?.chain) return;
+    axios.get(`/api/v1/swaps/market-trending/${pool.chain.toLowerCase()}`)
+      .then(res => setTrendingItems(res.data))
+      .catch(err => console.error("Failed to fetch trending:", err));
+  }, [pool.chain]);
+
+  const baseSymbol = swaps[0]?.base || "Base";
+  const quoteSymbol = swaps[0]?.quote || "Quote";
+
+  const networkSlug = GECKO_MAP[pool.chain] || "eth";
+  const chartUrl = `https://www.geckoterminal.com/${networkSlug}/pools/${pool.pool_address}?embed=1&info=0&swaps=0&light_chart=0&bg_color=000000`;
+
+  useEffect(() => {
+    if (!pool?.chain || !pool?.pool_address) return;
+
+    setLoading(true);
+    const chainName = pool.chain;
+    axios.get(`/api/v1/swaps/list/${chainName}/${pool.pool_address}?limit=100`)
+      .then(res => {
+        setSwaps(res.data || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to fetch pool history:", err);
+        setSwaps([]);
+        setLoading(false);
+      });
+
+    setInfoLoading(true);
+    const chainSlug = pool.chain.toLowerCase();
+    axios.get(`/api/v1/swaps/pool-info/${chainSlug}/${pool.pool_address}`)
+      .then(res => {
+        setPoolInfo(res.data);
+        setInfoLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to fetch pool intelligence:", err);
+        setInfoLoading(false);
+      });
+  }, [pool?.chain, pool?.pool_address]);
+
+  useEffect(() => {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const hostname = window.location.hostname;
+    const port = "8001";
+    const chainSlug = pool.chain.toLowerCase();
+    const wsUrl = `${protocol}//${hostname}:${port}/api/v1/swaps/ws/${chainSlug}/${pool.pool_address}`;
+
+    const socket = new WebSocket(wsUrl);
+
+    socket.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === "new_swaps") {
+          const newSwaps = message.data;
+          setSwaps(prev => {
+            const filtered = newSwaps.filter(ns => !prev.some(ps => ps.id === ns.id));
+            if (filtered.length === 0) return prev;
+
+            setUpdatedIds(new Set(filtered.map(s => s.id)));
+            setTimeout(() => setUpdatedIds(new Set()), 2000);
+
+            return [...filtered, ...prev].slice(0, 500);
+          });
+        }
+      } catch (e) { console.error("WS Error:", e); }
+    };
+
+    return () => socket.close();
+  }, [pool.chain, pool.pool_address]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      {trendingItems && trendingItems.length > 0 && (
+        <TrendingTicker items={trendingItems} onPoolClick={onPoolClick} chain={pool.chain} />
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24, alignItems: "start" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          {/* Chart Section - Clipped to hide branding */}
+          <div style={{
+            background: C.card, border: `1px solid ${C.border}`, borderRadius: 16,
+            height: 500, overflow: "hidden", position: "relative"
+          }}>
+            <iframe
+              id="geckoterminal-embed"
+              title="GeckoTerminal Embed"
+              src={chartUrl}
+              frameBorder="0"
+              allow="clipboard-write"
+              allowFullScreen
+              style={{
+                width: "100%",
+                height: "calc(100% + 42px)",
+                border: "none",
+                position: "absolute",
+                top: 0
+              }}
+            />
+          </div>
+
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: "24px", position: "relative", minHeight: 600 }}>
+            {loading && <ChartLoader />}
+
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#1c1e22", borderBottom: `1px solid ${C.border}` }}>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>Time</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>Type</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>USD Value</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>{baseSymbol}</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>{quoteSymbol}</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>Price</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>Trader</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>TXN</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading && (
+                    <tr>
+                      <td colSpan={8} style={{ padding: 60, textAlign: "center" }}>
+                        <div className="animate-pulse" style={{ color: C.dim, fontSize: 14 }}>Fetching swap history...</div>
+                      </td>
+                    </tr>
+                  )}
+                  {!loading && swaps.length === 0 && (
+                    <tr>
+                      <td colSpan={8} style={{ padding: 60, textAlign: "center", color: C.dim }}>
+                         <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 6 }}>No Trade History Found</div>
+                         <div style={{ fontSize: 12, color: C.muted }}>This pool exists on GeckoTerminal, but our local indexer hasn't recorded any swaps for it yet.</div>
+                      </td>
+                    </tr>
+                  )}
+                  {swaps.map((s, i) => (
+                    <tr key={s.id} style={{
+                      borderBottom: `1px solid ${C.border}`,
+                      transition: "background 0.5s",
+                      background: updatedIds.has(s.id) ? "rgba(59, 130, 246, 0.15)" : "transparent"
+                    }}>
+                      <td style={{ padding: "12px 16px", fontSize: 12, color: C.muted }}>{getAge(s.timestamp)}</td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <span style={{
+                          fontSize: 10, fontWeight: 900, padding: "2px 8px", borderRadius: 4,
+                          background: s.side === "BUY" ? C.green + "20" : C.red + "20",
+                          color: s.side === "BUY" ? C.green : C.red
+                        }}>{s.side}</span>
+                      </td>
+                      <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 800, color: s.side === "BUY" ? C.green : C.red }}>{fmt(s.usd_value)}</td>
+                      <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: s.side === "BUY" ? C.green : C.red }}>
+                        {fmtNum(s.amount_base)}
+                      </td>
+                      <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: s.side === "BUY" ? C.green : C.red }}>
+                        {fmtNum(s.amount_quote)}
+                      </td>
+                      <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: s.side === "BUY" ? C.green : C.red }}>
+                        <PriceValue val={s.price} />
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <a
+                          href={`${ADDRESS_EXPLORERS[pool.chain] || "https://etherscan.io/address/"}${s.tx_from}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontSize: 11, color: "#fff", fontFamily: "monospace", textDecoration: "none" }}
+                          onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"}
+                          onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}
+                        >
+                          {s.tx_from.slice(0, 6)}...{s.tx_from.slice(-4)}
+                        </a>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <a
+                          href={`${EXPLORERS[pool.chain] || "https://etherscan.io/tx/"}${s.tx_hash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontSize: 11, color: C.dim, fontFamily: "monospace", textDecoration: "none" }}
+                          onMouseEnter={e => e.currentTarget.style.color = "#fff"}
+                          onMouseLeave={e => e.currentTarget.style.color = C.dim}
+                        >
+                          <ExternalLink size={12} />
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Intelligence Sidebar */}
+        <div style={{ position: "sticky", top: 24 }}>
+          <PoolSidebar data={poolInfo} loading={infoLoading} chain={pool.chain} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function StatCard({ label, value, color, icon: Icon }) {
   return (
@@ -127,13 +599,6 @@ function StatCard({ label, value, color, icon: Icon }) {
       <div style={{ fontSize: 26, fontWeight: 700, color: color || C.text, letterSpacing: "-.02em", fontVariantNumeric: "tabular-nums" }}>{value}</div>
     </div>
   );
-}
-
-function ProtoDot({ proto }) {
-  const key = proto?.toLowerCase().includes("uniswap") ? "uniswap" :
-    proto?.toLowerCase().includes("sushi") ? "sushiswap" :
-      proto?.toLowerCase().includes("solid") ? "solidly" : null;
-  return <span style={{ width: 7, height: 7, borderRadius: "50%", background: (key && PROTOCOLS[key]?.dot) || C.muted, display: "inline-block", marginRight: 6, flexShrink: 0 }} />;
 }
 
 function Badge({ text, color }) {
@@ -213,93 +678,6 @@ function Watermark() {
 }
 
 // ── Concise Inspector Overlay (Floating over Live Feed) ───────────────────
-function SwapDetailOverlay({ swap, onClose }) {
-  if (!swap) return null;
-  const explorerUrl = (EXPLORERS[swap.chain] || "https://etherscan.io/tx/") + swap.tx_hash;
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "absolute", inset: 0, zIndex: 100,
-        background: "rgba(0,0,0,0.4)", backdropFilter: "blur(6px)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        borderRadius: 12, padding: 30
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          width: 440, background: "#0a0b0f",
-          border: `1px solid ${C.borderHi}`, borderRadius: 16,
-          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.8)",
-          padding: 24, position: "relative"
-        }}
-      >
-        <button
-          onClick={onClose}
-          style={{
-            position: "absolute", top: 16, right: 16,
-            background: "rgba(255,255,255,0.05)", border: "none",
-            borderRadius: 8, padding: 6, cursor: "pointer", color: "#fff"
-          }}>
-          <X size={16} />
-        </button>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-          <Zap size={16} color={C.uni} />
-          <span style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>Transaction Detail</span>
-        </div>
-
-        {/* Swap Flow Concise */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 12, background: "#111318", borderRadius: 10, border: `1px solid ${C.border}` }}>
-            <div>
-              <div style={{ fontSize: 9, color: C.muted, textTransform: "uppercase", fontWeight: 700 }}>Inbound Asset</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: "rgba(74, 222, 128, 0.9)" }}>{Math.abs(swap.amount_bought).toLocaleString(undefined, { maximumFractionDigits: 2 })} {swap.token_bought}</div>
-            </div>
-            <ArrowUpRight size={18} color="rgba(74, 222, 128, 0.4)" />
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 12, background: "#111318", borderRadius: 10, border: `1px solid ${C.border}` }}>
-            <div>
-              <div style={{ fontSize: 9, color: C.muted, textTransform: "uppercase", fontWeight: 700 }}>Outbound Asset</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: "rgba(248, 113, 113, 0.9)" }}>{Math.abs(swap.amount_sold).toLocaleString(undefined, { maximumFractionDigits: 2 })} {swap.token_sold}</div>
-            </div>
-            <ArrowDownRight size={18} color="rgba(248, 113, 113, 0.4)" />
-          </div>
-        </div>
-
-        {/* Info Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-          <div style={{ background: "#000", border: `1px solid ${C.border}`, borderRadius: 10, padding: 12 }}>
-            <div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>Protocol</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#fff" }}>{swap.dex}</div>
-            <div style={{ fontSize: 10, color: C.muted }}>{swap.chain}</div>
-          </div>
-
-          <div style={{ background: "#000", border: `1px solid ${C.border}`, borderRadius: 10, padding: 12 }}>
-            <div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>Explorer Status</div>
-            <a href={explorerUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: C.uni, textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
-              View Tx <ExternalLink size={10} />
-            </a>
-            <div style={{ fontSize: 9, color: C.muted, fontFamily: "monospace" }}>{swap.tx_hash.slice(0, 14)}...</div>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: C.uni + "10", border: `1px solid ${C.uni}30`, borderRadius: 10 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: C.uni }}>Total Value (USD)</span>
-          <span style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}>{fmt(swap.amount_usd)}</span>
-        </div>
-
-        <div style={{ marginTop: 16, fontSize: 10, color: C.dim, textAlign: "center" }}>
-          {swap.timestamp ? new Date(swap.timestamp).toLocaleString() : "Syncing..."}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 
 // ── Shared Constants ──────────────────────────────────────────────────────
 const MONTHS = [
@@ -311,83 +689,212 @@ const MONTHS = [
 ];
 
 // ── Overview page ──────────────────────────────────────────────────────────
-function Overview({ summary, volumeData, year, setYear, month, setMonth, loading }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 16 }}>
-        <StatCard label="Total volume (All-time)" value={fmt(summary?.total_volume_usd)} icon={Activity} />
-        <StatCard label="Total swaps" value={fmtNum(summary?.total_swaps)} icon={Layers} />
-        <StatCard label="Chains Tracked" value={summary?.chains_tracked || 0} icon={Box} />
-        <StatCard label="Protocols Tracked" value={Object.keys(PROTOCOLS).length} icon={Globe} />
-      </div>
+function Overview({ alphaMetrics, loading, isGlobalView, updatedPools, onPoolClick }) {
+  const [sortConfig, setSortConfig] = useState({ key: "metrics.volume_24h", dir: "desc" });
+  const [page, setPage] = useState(0);
+  const pageSize = 30;
+  const [trendingItems, setTrendingItems] = useState([]);
 
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "22px 24px", position: "relative", minHeight: 400 }}>
+  const lastChainRef = useRef(null);
+
+  useEffect(() => {
+    const chainName = alphaMetrics?.[0]?.chain || "Ethereum";
+    if (lastChainRef.current === chainName) return;
+
+    lastChainRef.current = chainName;
+    axios.get(`/api/v1/swaps/market-trending/${chainName.toLowerCase()}`)
+      .then(res => setTrendingItems(res.data))
+      .catch(err => console.error("Failed to fetch trending in Overview:", err));
+  }, [alphaMetrics]);
+
+  // Intelligent Nested Sorting
+  const getVal = (obj, path) => path.split(".").reduce((o, i) => o?.[i], obj);
+
+  const sortedData = useMemo(() => {
+    return [...(alphaMetrics || [])].sort((a, b) => {
+      const aVal = getVal(a, sortConfig.key) || 0;
+      const bVal = getVal(b, sortConfig.key) || 0;
+      return sortConfig.dir === "desc" ? bVal - aVal : aVal - bVal;
+    });
+  }, [alphaMetrics, sortConfig]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [alphaMetrics, sortConfig]);
+
+  const paginatedData = useMemo(() => {
+    return sortedData.slice(page * pageSize, (page + 1) * pageSize);
+  }, [sortedData, page]);
+
+  const toggleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      dir: prev.key === key && prev.dir === "desc" ? "asc" : "desc"
+    }));
+  };
+
+  // Header Definition for Dynamic Rendering
+  const HEADERS = [
+    { label: "Pair", key: "pair", type: "text" },
+    { label: "Price", key: "current_price" },
+    { label: "Volume", key: "metrics.total_volume" },
+    { label: "24h Vol", key: "metrics.volume_24h" },
+    { label: "3d Vol", key: "metrics.volume_3d" },
+    { label: "7d Vol", key: "metrics.volume_7d" },
+    { label: "Buy (5m)", key: "pressure.buy_5m" },
+    { label: "Sell (5m)", key: "pressure.sell_5m" },
+    { label: "Buy (10m)", key: "pressure.buy_10m" },
+    { label: "Sell (10m)", key: "pressure.sell_10m" }
+  ];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {trendingItems && trendingItems.length > 0 && (
+        <TrendingTicker items={trendingItems} onPoolClick={onPoolClick} chain={alphaMetrics?.[0]?.chain || "Ethereum"} />
+      )}
+      {/* Intelligence Section */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: "24px 32px", position: "relative", minHeight: 600 }}>
         {loading && <ChartLoader />}
+        {!loading && (!alphaMetrics || alphaMetrics.length === 0) && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 400, color: C.muted }}>
+            <Globe size={48} color={C.dim} style={{ marginBottom: 16 }} />
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>No Intelligence Data Found</div>
+            <div style={{ fontSize: 13, marginTop: 8 }}>We couldn't find any active pools matching this ecosystem at the moment.</div>
+          </div>
+        )}
         <Watermark />
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <span style={{ fontSize: 15, fontWeight: 600, color: "#fff" }}>Global Ecosystem Volume</span>
-            <div style={{ display: "flex", gap: 8 }}>
-              <select
-                value={year}
-                onChange={e => setYear(parseInt(e.target.value))}
-                style={{ background: "#111318", border: `1px solid ${C.border}`, color: C.text, fontSize: 12, borderRadius: 6, padding: "4px 8px", outline: "none", fontWeight: 500 }}>
-                <option value={2024}>2024</option>
-                <option value={2025}>2025</option>
-                <option value={2026}>2026</option>
-              </select>
-              <select
-                value={month || ""}
-                onChange={e => setMonth(e.target.value === "" ? null : parseInt(e.target.value))}
-                style={{ background: "#111318", border: `1px solid ${C.border}`, color: C.text, fontSize: 12, borderRadius: 6, padding: "4px 8px", outline: "none", fontWeight: 500 }}>
-                {MONTHS.map(m => <option key={m.label} value={m.val}>{m.label}</option>)}
-              </select>
-            </div>
+        {/* Timeframe Switcher (Shortcuts) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", background: "#111318", borderRadius: 8, padding: "3px 4px", border: `1px solid ${C.border}` }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: C.uni, padding: "0 12px", display: "flex", alignItems: "center", gap: 6 }}>
+              🔥 Trending
+            </span>
+            <div style={{ width: 1, height: 12, background: C.border, marginRight: 4 }} />
+            {[
+              { id: "metrics.volume_24h", label: "24H" },
+              { id: "metrics.volume_3d", label: "3D" },
+              { id: "metrics.volume_7d", label: "7D" }
+            ].map(tf => {
+              const active = sortConfig.key === tf.id;
+              return (
+                <button
+                  key={tf.id}
+                  onClick={() => setSortConfig({ key: tf.id, dir: "desc" })}
+                  style={{
+                    padding: "3px 12px", borderRadius: 6, fontSize: 10, fontWeight: 800, cursor: "pointer",
+                    background: active ? C.uni : "transparent",
+                    color: active ? "#fff" : C.muted,
+                    border: "none", transition: "all 0.2s ease"
+                  }}>
+                  {tf.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        <div style={{ position: "relative", height: 320 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={volumeData}>
-              <defs>
-                <linearGradient id="colorVol" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={C.uni} stopOpacity={0.4} />
-                  <stop offset="95%" stopColor={C.uni} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} stroke={C.border} strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fill: "#FFFFFF", fontSize: 11, fontWeight: 500 }} axisLine={{ stroke: C.borderHi, strokeWidth: 1 }} tickLine={false} />
-              <YAxis tick={{ fill: "#FFFFFF", fontSize: 11, fontWeight: 500 }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v / 1e6).toFixed(0)}M`} width={54} />
-              <Tooltip
-                contentStyle={TOOLTIP_STYLE} itemStyle={{ color: "#FFFFFF" }}
-                labelStyle={{ color: "#FFFFFF", marginBottom: 6, fontWeight: 700 }}
-                formatter={(v) => [`$${v.toLocaleString()}`, "Volume"]}
-              />
-              <Area type="monotone" dataKey="volume" stroke={C.uni} fillOpacity={1} fill="url(#colorVol)" strokeWidth={3} isAnimationActive={!loading} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.2fr) minmax(0,1fr)", gap: 16 }}>
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "20px 24px", position: "relative" }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 16 }}>Chain Distribution</div>
+        <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr>
-                {["Chain", "Volume", "Share"].map(h => (
-                  <th key={h} style={{ textAlign: h === "Chain" ? "left" : "right", fontSize: 12, color: "#fff", fontWeight: 600, paddingBottom: 15, borderBottom: `1px solid ${C.border}` }}>{h}</th>
-                ))}
+              <tr style={{ background: "#1c1e22", borderBottom: `1px solid ${C.border}` }}>
+                {HEADERS.map(h => {
+                  const isActive = sortConfig.key === h.key;
+                  return (
+                    <th
+                      key={h.key}
+                      onClick={() => toggleSort(h.key)}
+                      style={{
+                        textAlign: "left", fontSize: 10, color: isActive ? C.uni : C.muted,
+                        fontWeight: 800, padding: "12px 16px", textTransform: "uppercase",
+                        letterSpacing: "0.05em", cursor: "pointer", userSelect: "none",
+                        position: "relative"
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center" }}>
+                        <span style={{ marginRight: 16 }}>{h.label}</span>
+                        {isActive && (
+                          <span style={{ fontSize: 12, position: "absolute", right: 8 }}>{sortConfig.dir === "desc" ? "↓" : "↑"}</span>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {summary?.volume_by_chain?.map(row => (
-                <tr key={row.chain}>
-                  <td style={{ padding: "14px 0", borderBottom: `0.5px solid ${C.border}`, fontSize: 14, fontWeight: 500 }}>{row.chain}</td>
-                  <td style={{ textAlign: "right", fontSize: 13, color: "#fff", fontVariantNumeric: "tabular-nums", borderBottom: `0.5px solid ${C.border}` }}>{fmt(row.volume)}</td>
-                  <td style={{ textAlign: "right", fontSize: 13, color: C.muted, borderBottom: `0.5px solid ${C.border}` }}>
-                    {summary.total_volume_usd > 0 ? ((row.volume / summary.total_volume_usd) * 100).toFixed(1) : 0}%
+              {paginatedData.map((m, i) => (
+                <tr key={i}
+                  onClick={() => onPoolClick(m)}
+                  style={{ borderBottom: `1px solid ${C.border}`, transition: "background 0.2s", cursor: "pointer" }}
+                  className={`hover-row ${updatedPools?.has(m.pool_address) ? "animate-row-flash" : ""}`}
+                >
+                  <td style={{ padding: "12px 16px", verticalAlign: "middle" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {/* Token Multi-Icon Container (Side-by-side) */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        {isGlobalView && (
+                          <div style={{
+                            width: 18, height: 18, borderRadius: 4, background: "#111318", border: `1px solid ${C.border}`,
+                            display: "flex", alignItems: "center", justifyContent: "center"
+                          }}>
+                            <img src={(m.chain?.toLowerCase() || "").includes("eth") ? "https://cryptologos.cc/logos/ethereum-eth-logo.svg?v=025" :
+                              (m.chain?.toLowerCase() || "").includes("arb") ? "https://cryptologos.cc/logos/arbitrum-arb-logo.svg?v=025" :
+                                "https://cryptologos.cc/logos/optimism-ethereum-op-logo.svg?v=025"}
+                              style={{ width: 12, height: 12 }} alt="chain" />
+                          </div>
+                        )}
+                        <div style={{
+                          width: 18, height: 18, borderRadius: 4, background: "#111318", border: `1px solid ${C.border}`,
+                          display: "flex", alignItems: "center", justifyContent: "center"
+                        }}>
+                          <img src="https://cryptologos.cc/logos/uniswap-uni-logo.svg?v=025" style={{ width: 12, height: 12 }} alt="uni" />
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                        <a
+                          href={`${TOKEN_EXPLORERS[m.chain] || "https://etherscan.io/token/"}${m.base_token?.address}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: "1.2",
+                            textDecoration: "none", transition: "all 0.2s ease"
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.color = C.uni}
+                          onMouseLeave={e => e.currentTarget.style.color = "#fff"}
+                        >
+                          {m.pair || "Unknown Pair"}
+                        </a>
+                        <div style={{ fontSize: 10, color: C.muted, lineHeight: "1.2" }}>{m.base_token?.symbol || "???"}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: "12px 16px", verticalAlign: "middle", fontSize: 13, fontWeight: 700, color: "#fff" }}>
+                    ${m.current_price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 }) || "0.00"}
+                  </td>
+                  <td style={{ padding: "12px 16px", verticalAlign: "middle", fontSize: 14, fontWeight: 800, color: "#fff" }}>
+                    {fmt(m.metrics?.total_volume)}
+                  </td>
+                  <td style={{ padding: "12px 16px", verticalAlign: "middle", fontSize: 14, fontWeight: 700, color: "#fff" }}>
+                    {fmt(m.metrics?.volume_24h)}
+                  </td>
+                  <td style={{ padding: "12px 16px", verticalAlign: "middle", fontSize: 14, fontWeight: 700, color: "#fff" }}>
+                    {fmt(m.metrics?.volume_3d)}
+                  </td>
+                  <td style={{ padding: "12px 16px", verticalAlign: "middle", fontSize: 14, fontWeight: 700, color: "#fff" }}>
+                    {fmt(m.metrics?.volume_7d)}
+                  </td>
+                  <td style={{ padding: "12px 16px", verticalAlign: "middle" }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: C.green }}>{fmt(m.pressure?.buy_5m)}</span>
+                  </td>
+                  <td style={{ padding: "12px 16px", verticalAlign: "middle" }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: C.red }}>{fmt(m.pressure?.sell_5m)}</span>
+                  </td>
+                  <td style={{ padding: "12px 16px", verticalAlign: "middle" }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: C.green }}>{fmt(m.pressure?.buy_10m)}</span>
+                  </td>
+                  <td style={{ padding: "12px 16px", verticalAlign: "middle" }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: C.red }}>{fmt(m.pressure?.sell_10m)}</span>
                   </td>
                 </tr>
               ))}
@@ -395,23 +902,45 @@ function Overview({ summary, volumeData, year, setYear, month, setMonth, loading
           </table>
         </div>
 
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "20px 24px", position: "relative" }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 16 }}>DEX Performance</div>
-          {summary?.volume_by_dex?.map((row, i) => (
-            <div key={row.dex} style={{ padding: "14px 0", borderBottom: i < summary.volume_by_dex.length - 1 ? `0.5px solid ${C.border}` : "none" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <ProtoDot proto={row.dex} />
-                  <span style={{ fontSize: 14, fontWeight: 500 }}>{row.dex}</span>
-                </div>
-                <span style={{ fontSize: 14, fontWeight: 700 }}>{fmt(row.volume)}</span>
-              </div>
-              <div style={{ marginTop: 10, height: 6, borderRadius: 3, background: C.border }}>
-                <div style={{ height: 6, borderRadius: 3, background: row.dex.toLowerCase().includes("uni") ? C.uni : row.dex.toLowerCase().includes("sushi") ? C.sushi : C.solid, width: `${summary.total_volume_usd > 0 ? (row.volume / summary.total_volume_usd * 100) : 0}%` }} />
-              </div>
+        {/* Pagination Section */}
+        {sortedData.length > pageSize && (
+          <div style={{
+            display: "flex", justifyContent: "flex-end", alignItems: "center",
+            marginTop: 24, gap: 20, paddingTop: 20, borderTop: `1px solid ${C.border}`
+          }}>
+            <div style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>
+              Showing pairs <span style={{ color: "#fff", fontWeight: 700 }}>{page * pageSize + 1}–{Math.min((page + 1) * pageSize, sortedData.length)}</span> of <span style={{ color: "#fff", fontWeight: 700 }}>{sortedData.length.toLocaleString()}</span>
             </div>
-          ))}
-        </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                disabled={page === 0}
+                onClick={() => setPage(p => p - 1)}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: 36, height: 36, borderRadius: 8, background: "#111318",
+                  border: `1px solid ${C.border}`, cursor: page === 0 ? "not-allowed" : "pointer",
+                  color: page === 0 ? C.dim : "#fff", transition: "all 0.2s"
+                }}>
+                <ChevronLeft size={18} />
+              </button>
+
+              <button
+                disabled={(page + 1) * pageSize >= sortedData.length}
+                onClick={() => setPage(p => p + 1)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "0 16px",
+                  height: 36, borderRadius: 8, background: "#111318",
+                  border: `1px solid ${C.border}`, cursor: (page + 1) * pageSize >= sortedData.length ? "not-allowed" : "pointer",
+                  color: (page + 1) * pageSize >= sortedData.length ? C.dim : "#fff",
+                  fontSize: 12, fontWeight: 700, transition: "all 0.2s"
+                }}>
+                <span>Pairs {(page + 1) * pageSize + 1}–{Math.min((page + 2) * pageSize, sortedData.length)}</span>
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -420,6 +949,7 @@ function Overview({ summary, volumeData, year, setYear, month, setMonth, loading
 // ── Protocol page ──────────────────────────────────────────────────────────
 function ProtocolView({ proto, analytics, year, setYear, month, setMonth, loading }) {
   const p = PROTOCOLS[proto];
+  if (!p) return null; // Safety guard to prevent crash if view is not a protocol
 
   // Independent state for pool chart
   // Pagination state for pool list
@@ -457,8 +987,8 @@ function ProtocolView({ proto, analytics, year, setYear, month, setMonth, loadin
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-            <span style={{ fontSize: 24, fontWeight: 900, color: "#fff", letterSpacing: "-0.5px" }}>{p.label} Intelligence</span>
-            <Badge text="Live Performance" color={p.color} />
+            <span style={{ fontSize: 24, fontWeight: 900, color: "#fff", letterSpacing: "-0.5px" }}>{p.label} Market</span>
+            <Badge text="Active Performance" color={p.color} />
           </div>
           <div style={{ fontSize: 13, color: C.muted, maxWidth: 600, lineHeight: 1.5 }}>
             {p.description}
@@ -609,109 +1139,6 @@ function ProtocolView({ proto, analytics, year, setYear, month, setMonth, loadin
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function SwapTable({
-  swaps,
-  title = "Live swap feed",
-  chain, setChain,
-  dex, setDex,
-  minUSD, setMinUSD,
-  fixedDex = null
-}) {
-  const [selectedSwap, setSelectedSwap] = useState(null);
-
-  return (
-    <div style={{ position: "relative", background: "#000000", border: `1px solid ${C.border}`, borderRadius: 12, padding: "24px" }}>
-      <SwapDetailOverlay swap={selectedSwap} onClose={() => setSelectedSwap(null)} />
-
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ width: 10, height: 10, borderRadius: "50%", background: C.green, boxShadow: `0 0 12px ${C.green}80` }} />
-          <span style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>{title}</span>
-        </div>
-
-        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#111318", borderRadius: 8, padding: "6px 14px", border: `1px solid ${C.border}` }}>
-            <Filter size={14} color={C.muted} />
-            <select
-              value={chain || ""}
-              onChange={e => setChain(e.target.value || null)}
-              style={{ background: "transparent", border: "none", color: "#fff", fontSize: 12, outline: "none", cursor: "pointer", fontWeight: 600 }}>
-              <option value="" style={{ background: "#0a0b0f" }}>All Chains</option>
-              {CHAINS.map(c => <option key={c} value={c} style={{ background: "#0a0b0f" }}>{c}</option>)}
-            </select>
-          </div>
-
-          {!fixedDex && (
-            <select
-              value={dex || ""}
-              onChange={e => setDex(e.target.value || null)}
-              style={{ background: "#111318", border: `1px solid ${C.border}`, borderRadius: 8, color: "#fff", fontSize: 12, padding: "8px 14px", outline: "none", cursor: "pointer", fontWeight: 600 }}>
-              <option value="" style={{ background: "#0a0b0f" }}>All Protocols</option>
-              {Object.keys(PROTOCOLS).map(k => <option key={k} value={PROTOCOLS[k].id} style={{ background: "#0a0b0f" }}>{PROTOCOLS[k].label}</option>)}
-            </select>
-          )}
-
-          <div style={{ position: "relative" }}>
-            <span style={{ position: "absolute", left: 12, top: 8, fontSize: 12, color: C.muted }}>$</span>
-            <input
-              type="number"
-              placeholder="Min Val"
-              value={minUSD || ""}
-              onChange={e => setMinUSD(e.target.value ? parseFloat(e.target.value) : null)}
-              style={{
-                background: "#111318", border: `1px solid ${C.border}`, borderRadius: 8,
-                color: "#fff", fontSize: 12, padding: "8px 14px 8px 24px", outline: "none", width: 110, fontWeight: 600
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 800 }}>
-          <thead>
-            <tr>
-              {["Chain", "Dex", "Pair", "Age", "Amount USD", "In / Out", "Tx Hash"].map(h => (
-                <th key={h} style={{ textAlign: "left", fontSize: 13, color: "#FFFFFF", fontWeight: 700, paddingBottom: 18, borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap", paddingRight: 24 }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {(swaps || []).map((s, i) => {
-              const explorerUrl = (EXPLORERS[s.chain] || "https://etherscan.io/tx/") + s.tx_hash;
-              return (
-                <tr key={i} onClick={() => setSelectedSwap(s)} style={{ transition: "background 0.2s", cursor: "pointer" }} onMouseEnter={e => e.currentTarget.style.background = "#ffffff05"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                  <td style={{ padding: "16px 24px 16px 0", borderBottom: `0.5px solid ${C.border}`, fontSize: 14, color: "#fff", fontWeight: 500 }}>{s.chain}</td>
-                  <td style={{ paddingRight: 24, borderBottom: `0.5px solid ${C.border}` }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <ProtoDot proto={s.dex} />
-                      <span style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{s.dex}</span>
-                    </div>
-                  </td>
-                  <td style={{ paddingRight: 24, borderBottom: `0.5px solid ${C.border}`, fontSize: 14, fontWeight: 700, color: "#fff" }}>{s.token_bought}/{s.token_sold}</td>
-                  <td style={{ paddingRight: 24, borderBottom: `0.5px solid ${C.border}`, fontSize: 13, color: C.muted }}>{getAge(s.timestamp)}</td>
-                  <td style={{ paddingRight: 24, borderBottom: `0.5px solid ${C.border}`, fontSize: 14, fontWeight: 800, color: "#fff" }}>{fmt(s.amount_usd)}</td>
-                  <td style={{ paddingRight: 24, borderBottom: `0.5px solid ${C.border}`, fontSize: 13, fontWeight: 600 }}>
-                    <span style={{ color: "rgba(74, 222, 128, 0.85)" }}>{Math.abs(s.amount_bought).toFixed(1)} {s.token_bought}</span>
-                    <span style={{ color: C.muted, margin: "0 6px" }}>/</span>
-                    <span style={{ color: "rgba(248, 113, 113, 0.85)" }}>{Math.abs(s.amount_sold).toFixed(1)} {s.token_sold}</span>
-                  </td>
-                  <td style={{ borderBottom: `0.5px solid ${C.border}` }} onClick={e => e.stopPropagation()}>
-                    <a href={explorerUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 8, color: C.uni, fontSize: 13, textDecoration: "none", fontFamily: "monospace", opacity: 0.8 }} onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.8}>
-                      {s.tx_hash.slice(0, 10)}...
-                      <ExternalLink size={13} />
-                    </a>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
       </div>
     </div>
   );
@@ -880,11 +1307,42 @@ function SearchIntelligenceModal({ query, isOpen, onClose, onSelect }) {
 }
 
 // ── App Container ──────────────────────────────────────────────────────────
+
+// ── Global Styles ────────────────────────────────────────────────────────
+const GLOBAL_STYLES = `
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  
+  @keyframes row-flash {
+    0% { background: rgba(34, 197, 94, 0.2); }
+    100% { background: transparent; }
+  }
+  .animate-row-flash { animation: row-flash 2s ease-out; }
+  
+  @keyframes live-pulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .animate-live-pulse { animation: live-pulse 2s infinite ease-in-out; }
+  
+  .animate-spin-slow { animation: spin 3s linear infinite; }
+  .animate-spin-fast { animation: spin 1s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+`;
+
 export default function App() {
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.textContent = GLOBAL_STYLES;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
+
   const [view, setView] = useState("overview");
+  const [selectedPool, setSelectedPool] = useState(null);
   const [summary, setSummary] = useState(null);
-  const [volumeData, setVolumeData] = useState([]);
-  const [recentSwaps, setRecentSwaps] = useState([]);
+  const [alphaMetrics, setAlphaMetrics] = useState([]);
   const [protoAnalytics, setProtoAnalytics] = useState({});
 
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -892,86 +1350,149 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [protoLoading, setProtoLoading] = useState(false);
 
-  // Search State
+  // ... rest of search states ...
   const [searchVal, setSearchVal] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  // Swap Table Filter States
-  const [swapChain, setSwapChain] = useState(null);
-  const [swapDex, setSwapDex] = useState(null);
-  const [swapMinUSD, setSwapMinUSD] = useState(null);
+  const [wsStatus, setWsStatus] = useState("connecting"); // connecting, open, closed
+  const [updatedPools, setUpdatedPools] = useState(new Set());
+
   const [selectedSwap, setSelectedSwap] = useState(null);
 
-  // 1. Fetch search results
-  useEffect(() => {
-    if (searchVal.length < 2) {
-      setSearchResults([]);
-      setShowResults(false);
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setIsSearching(true);
-      axios.get(`/api/v1/search/?q=${searchVal}`)
-        .then(res => {
-          setSearchResults(res.data.results || []);
-          setShowResults(true);
-          setIsSearching(false);
-        })
-        .catch(() => setIsSearching(false));
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [searchVal]);
+  // Sidebar States
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [suppressHover, setSuppressHover] = useState(false);
+  const isEffectiveCollapsed = isCollapsed && (!isHovered || suppressHover);
 
   const handleSearchResultClick = (item) => {
-    setShowResults(false);
-    setSearchVal("");
-
-    if (item.type === "transaction") {
-      setSelectedSwap({
-        tx_hash: item.id,
-        chain: item.sublabel,
-        dex: item.label.split(" ")[0],
-        amount_usd: item.value,
-        timestamp: new Date().getTime() / 1000 // approximation
-      });
+    if (item.type === "pool") {
+      const poolObj = {
+        chain: item.sublabel.split("@")[1]?.trim() || "Ethereum",
+        pool_address: item.id,
+        pair: item.label
+      };
+      setSelectedPool(poolObj);
+      setView("pool");
     } else if (item.type === "token") {
-      alert(`Filtering for token: ${item.label}`);
-    } else if (item.type === "pool") {
-      alert(`Viewing pool: ${item.label}`);
+      // Logic for token click
     }
   };
 
-  // 2. Fetch ecosystem overview summary
+  // 2. Fetch Alpha Metrics for Overview or Specific Chain
   useEffect(() => {
-    axios.get("/api/v1/stats/overview/summary").then(res => setSummary(res.data));
-  }, []);
+    const fetchGlobalData = async () => {
+      setLoading(true);
+      setAlphaMetrics([]);
+
+      const params = new URLSearchParams({ limit: "1000" });
+      const chainName = CHAINS.find(c => c.toLowerCase() === view.toLowerCase());
+      if (chainName) {
+        params.append("chain_name", chainName);
+      }
+
+      const url = `/api/v1/alpha/metrics?${params.toString()}`;
+      axios.get(url)
+        .then(res => {
+          setAlphaMetrics(res.data || []);
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error("Alpha intelligence sync failed:", err);
+          setAlphaMetrics([]);
+          setLoading(false);
+        });
+    };
+
+    if (view === "overview" || CHAINS.some(c => c.toLowerCase() === view.toLowerCase())) {
+      fetchGlobalData();
+    }
+  }, [view]);
+
+  // 3. Real-time WebSocket Logic
+  useEffect(() => {
+    let socket;
+    let reconnectTimer;
+
+    const connect = () => {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const hostname = window.location.hostname;
+      // Backend is on port 8001 per docker-compose
+      const port = "8001";
+      const wsUrl = `${protocol}//${hostname}:${port}/api/v1/alpha/ws`;
+      console.log(`Connecting to Intelligence Tunnel: ${wsUrl}`);
+      socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => {
+        console.log("Intelligence tunnel open.");
+        setWsStatus("open");
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const newData = JSON.parse(event.data);
+          const isOverviewOrChain = view === "overview" || CHAINS.some(c => c.toLowerCase() === view.toLowerCase());
+
+          if (isOverviewOrChain) {
+            setAlphaMetrics(prev => {
+              // Create a map for fast lookup
+              const updateMap = new Map(newData.map(item => [item.pool_address, item]));
+              const newIds = new Set();
+
+              // Only update if we have a previous list to patch
+              if (!prev || prev.length === 0) return newData;
+
+              const updatedList = prev.map(oldItem => {
+                const newItem = updateMap.get(oldItem.pool_address);
+                if (newItem) {
+                  const priceChanged = newItem.current_price !== oldItem.current_price;
+                  const volChanged = newItem.metrics?.volume_24h !== oldItem.metrics?.volume_24h;
+                  if (priceChanged || volChanged) {
+                    newIds.add(newItem.pool_address);
+                  }
+                  return newItem;
+                }
+                return oldItem;
+              });
+
+              if (newIds.size > 0) {
+                setUpdatedPools(newIds);
+                setTimeout(() => setUpdatedPools(new Set()), 3000);
+              }
+              return updatedList;
+            });
+          }
+        } catch (err) {
+          console.error("Malformed intelligence packet:", err);
+        }
+      };
+
+      socket.onclose = () => {
+        setWsStatus("closed");
+        console.log("Intelligence tunnel closed. Reconnecting...");
+        reconnectTimer = setTimeout(connect, 5000);
+      };
+
+      socket.onerror = () => {
+        setWsStatus("closed");
+        socket.close();
+      };
+    };
+
+    connect();
+
+    return () => {
+      if (socket) socket.close();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+    };
+  }, [view]);
 
   useEffect(() => {
-    setLoading(true);
-    let url = `/api/v1/stats/overview/analytics?year=${selectedYear}`;
-    if (selectedMonth) url += `&month=${selectedMonth}`;
-    axios.get(url).then(res => {
-      setVolumeData(res.data.volume_over_time);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [selectedYear, selectedMonth]);
-
-  useEffect(() => {
-    let url = `/api/v1/swaps/list?limit=15`;
-    if (swapChain) url += `&chain_name=${swapChain}`;
-    const activeDex = view === "overview" ? swapDex : PROTOCOLS[view].id;
-    if (activeDex) url += `&dex=${activeDex}`;
-    if (swapMinUSD) url += `&min_usd=${swapMinUSD}`;
-    axios.get(url).then(res => setRecentSwaps(res.data));
-  }, [view, swapChain, swapDex, swapMinUSD]);
-
-  useEffect(() => {
-    if (view !== "overview") {
+    // Only fetch if the view corresponds to a known protocol
+    if (view !== "overview" && PROTOCOLS[view]) {
       const dexId = PROTOCOLS[view].id;
       setProtoLoading(true);
       let url = `/api/v1/swaps/analytics?dex=${dexId}&year=${selectedYear}`;
@@ -998,33 +1519,88 @@ export default function App() {
         }}
       />
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
-        <aside style={{
-          width: 220, minWidth: 220, background: C.surface,
-          borderRight: `1px solid ${C.border}`,
-          display: "flex", flexDirection: "column",
-          height: "100%",
-        }}>
-          <div style={{ padding: "26px 20px", borderBottom: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.04em", display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 26, height: 26, background: C.uni, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <aside
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => {
+            setIsHovered(false);
+            setSuppressHover(false);
+          }}
+          style={{
+            width: isEffectiveCollapsed ? 68 : 220,
+            minWidth: isEffectiveCollapsed ? 68 : 220,
+            background: C.surface,
+            borderRight: `1px solid ${C.border}`,
+            display: "flex", flexDirection: "column",
+            height: "100%",
+            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            overflow: "hidden",
+            position: "relative"
+          }}>
+          <div style={{
+            padding: "26px 20px", borderBottom: `1px solid ${C.border}`,
+            display: "flex", alignItems: "center", position: "relative",
+            minHeight: 82, boxSizing: "border-box"
+          }}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              overflow: "hidden", width: "100%"
+            }}>
+              <div style={{
+                width: 26, height: 26, background: C.uni, borderRadius: 6,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0
+              }}>
                 <TrendingUp size={16} color="white" />
               </div>
-              TradesLens
+              <span style={{
+                fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.04em",
+                whiteSpace: "nowrap", opacity: isEffectiveCollapsed ? 0 : 1,
+                transition: "opacity 0.2s", display: isEffectiveCollapsed ? "none" : "block"
+              }}>
+                TradesLens
+              </span>
             </div>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const newCollapsed = !isCollapsed;
+                setIsCollapsed(newCollapsed);
+                if (newCollapsed) {
+                  setSuppressHover(true);
+                } else {
+                  setSuppressHover(false);
+                }
+              }}
+              style={{
+                position: "absolute", right: isEffectiveCollapsed ? -8 : 12,
+                top: "50%", transform: "translateY(-50%)",
+                background: isEffectiveCollapsed ? C.uni : "transparent",
+                border: "none", color: isEffectiveCollapsed ? "#fff" : C.dim,
+                cursor: "pointer", display: "flex", alignItems: "center",
+                justifyContent: "center", width: 24, height: 24,
+                borderRadius: "50%", zIndex: 30,
+                boxShadow: isEffectiveCollapsed ? "0 0 10px rgba(59, 130, 246, 0.4)" : "none",
+                transition: "all 0.3s ease"
+              }}
+            >
+              {isEffectiveCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={18} />}
+            </button>
           </div>
           <nav style={{ padding: "24px 12px", flex: 1 }}>
             <button onClick={() => setView("overview")}
               style={{
                 display: "flex", alignItems: "center", gap: 12, width: "100%", background: view === "overview" ? "#ffffff10" : "transparent",
                 border: view === "overview" ? `1px solid ${C.borderHi}` : "1px solid transparent",
-                borderRadius: 10, padding: "12px 14px", cursor: "pointer", color: view === "overview" ? "#fff" : C.muted,
-                fontSize: 14, fontFamily: "inherit", marginBottom: 20, transition: "all 0.25s ease", fontWeight: view === "overview" ? 600 : 500
+                borderRadius: 10, padding: isEffectiveCollapsed ? "12px 0" : "12px 14px", cursor: "pointer", color: view === "overview" ? "#fff" : C.muted,
+                fontSize: 14, fontFamily: "inherit", marginBottom: 20, transition: "all 0.25s ease", fontWeight: view === "overview" ? 600 : 500,
+                justifyContent: isEffectiveCollapsed ? "center" : "flex-start"
               }}>
               <BarChart3 size={18} strokeWidth={view === "overview" ? 2.5 : 2} color={view === "overview" ? C.uni : C.dim} />
-              Overview
+              {!isEffectiveCollapsed && <span>Overview</span>}
             </button>
 
-            <div style={{ fontSize: 10, color: C.dim, letterSpacing: ".08em", textTransform: "uppercase", padding: "4px 12px 10px", fontWeight: 700, opacity: 0.8 }}>Protocols</div>
+            {!isEffectiveCollapsed && <div style={{ fontSize: 10, color: C.dim, letterSpacing: ".08em", textTransform: "uppercase", padding: "4px 12px 10px", fontWeight: 700, opacity: 0.8 }}>Network Segments</div>}
             {NAV.filter(n => n.id !== "overview").map(item => {
               const active = view === item.id;
               const Icon = item.icon;
@@ -1033,32 +1609,44 @@ export default function App() {
                   style={{
                     display: "flex", alignItems: "center", gap: 12, width: "100%", background: active ? "#ffffff10" : "transparent",
                     border: active ? `1px solid ${C.borderHi}` : "1px solid transparent",
-                    borderRadius: 10, padding: "12px 14px", cursor: "pointer", color: active ? "#fff" : C.muted,
-                    fontSize: 14, fontFamily: "inherit", marginBottom: 6, transition: "all 0.15s ease", fontWeight: active ? 600 : 500
+                    borderRadius: 10, padding: isEffectiveCollapsed ? "12px 0" : "12px 14px", cursor: "pointer", color: active ? "#fff" : C.muted,
+                    fontSize: 14, fontFamily: "inherit", marginBottom: 6, transition: "all 0.15s ease", fontWeight: active ? 600 : 500,
+                    justifyContent: isEffectiveCollapsed ? "center" : "flex-start"
                   }}>
-                  <Icon size={18} strokeWidth={active ? 2.5 : 2} color={active ? (item.color || C.uni) : C.dim} />
-                  {item.label}
+                  {item.logo ? (
+                    <img src={item.logo} style={{ width: 18, height: 18, opacity: active ? 1 : 0.6 }} alt={item.label} />
+                  ) : (
+                    <Icon size={18} strokeWidth={active ? 2.5 : 2} color={active ? (item.color || C.uni) : C.dim} />
+                  )}
+                  {!isEffectiveCollapsed && <span>{item.label}</span>}
                 </button>
               );
             })}
 
-            <div style={{
-              marginTop: 12, padding: "14px", borderRadius: 10,
-              background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.1)",
-              display: "flex", alignItems: "center", gap: 12, opacity: 0.6
-            }}>
-              <PlusCircle size={18} color={C.dim} strokeWidth={1.5} />
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Protocol Incoming</div>
-                <div style={{ fontSize: 10, color: C.dim, marginTop: 2, fontWeight: 500 }}>Expansion in progress</div>
+            {!isEffectiveCollapsed && (
+              <div style={{
+                marginTop: 12, padding: "14px", borderRadius: 10,
+                background: "rgba(255,255,255,0.02)", border: "1px dashed rgba(255,255,255,0.1)",
+                display: "flex", alignItems: "center", gap: 12, opacity: 0.6
+              }}>
+                <PlusCircle size={18} color={C.dim} strokeWidth={1.5} />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>Protocol Incoming</div>
+                  <div style={{ fontSize: 10, color: C.dim, marginTop: 2, fontWeight: 500 }}>Expansion in progress</div>
+                </div>
               </div>
-            </div>
+            )}
           </nav>
 
-          <div style={{ padding: "20px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "center", gap: 16 }}>
-            <a href="https://github.com/Freemandaily/TradesLens" target="_blank" rel="noreferrer" title="Github" style={{ color: C.dim, transition: "color 0.2s" }} onMouseEnter={e => e.currentTarget.style.color = "#fff"} onMouseLeave={e => e.currentTarget.style.color = C.dim}><Github size={16} /></a>
-            <a href="https://twitter.com/freemandayly" target="_blank" rel="noreferrer" title="Twitter" style={{ color: C.dim, transition: "color 0.2s" }} onMouseEnter={e => e.currentTarget.style.color = "#1DA1F2"} onMouseLeave={e => e.currentTarget.style.color = C.dim}><Twitter size={16} /></a>
-            <a href="https://t.me/freemanonah" target="_blank" rel="noreferrer" title="Telegram" style={{ color: C.dim, transition: "color 0.2s" }} onMouseEnter={e => e.currentTarget.style.color = "#24A1DE"} onMouseLeave={e => e.currentTarget.style.color = C.dim}><Send size={16} /></a>
+          <div style={{
+            padding: "20px", borderTop: `1px solid ${C.border}`,
+            display: "flex", justifyContent: "center", gap: isEffectiveCollapsed ? 0 : 16,
+            flexDirection: isEffectiveCollapsed ? "column" : "row",
+            alignItems: "center"
+          }}>
+            <a href="https://github.com/Freemandaily/TradesLens" target="_blank" rel="noreferrer" title="Github" style={{ color: C.dim, transition: "color 0.2s", marginBottom: isEffectiveCollapsed ? 12 : 0 }} onMouseEnter={e => e.currentTarget.style.color = "#fff"} onMouseLeave={e => e.currentTarget.style.color = C.dim}><Github size={16} /></a>
+            <a href="https://twitter.com/freemandayly" target="_blank" rel="noreferrer" title="Twitter" style={{ color: C.dim, transition: "color 0.2s", marginBottom: isEffectiveCollapsed ? 12 : 0 }} onMouseEnter={e => e.currentTarget.style.color = "#1DA1F2"} onMouseLeave={e => e.currentTarget.style.color = C.dim}><Twitter size={16} /></a>
+            <a href="https://t.me/freemanonah" target="_blank" rel="noreferrer" title="Telegram" style={{ color: C.dim, transition: "color 0.2s", marginBottom: isEffectiveCollapsed ? 12 : 0 }} onMouseEnter={e => e.currentTarget.style.color = "#24A1DE"} onMouseLeave={e => e.currentTarget.style.color = C.dim}><Send size={16} /></a>
             <a href="https://www.linkedin.com/in/onah-innocent-69ba32112/" target="_blank" rel="noreferrer" title="LinkedIn" style={{ color: C.dim, transition: "color 0.2s" }} onMouseEnter={e => e.currentTarget.style.color = "#0077b5"} onMouseLeave={e => e.currentTarget.style.color = C.dim}><Linkedin size={16} /></a>
           </div>
         </aside>
@@ -1069,97 +1657,56 @@ export default function App() {
             display: "flex", alignItems: "center", justifyContent: "space-between",
             background: "#000000", position: "sticky", top: 0, zIndex: 10,
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <span style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
-                {isProto ? PROTOCOLS[view].label : "Ecosystem Overview"}
+                {view === "overview" ? "Ecosystem Overview" : (CHAINS.find(c => c.toLowerCase() === view) || PROTOCOLS[view]?.label)}
               </span>
-            </div>
-            <div style={{ position: "relative" }}>
-              <Search size={16} style={{ position: "absolute", left: 12, top: 11, color: isSearching ? C.uni : C.dim }} className={isSearching ? "animate-pulse" : ""} />
-              <input
-                type="text"
-                placeholder="Search hash, pool, token..."
-                value={searchVal}
-                onChange={e => setSearchVal(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && setShowModal(true)}
-                onFocus={() => searchResults.length > 0 && setShowResults(true)}
-                style={{
-                  background: "#0a0b0f", border: `2px solid ${showResults ? C.borderHi : C.border}`, borderRadius: 10,
-                  padding: "10px 14px 10px 38px", fontSize: 14, color: "#fff", width: 320, outline: "none",
-                  transition: "all 0.2s"
-                }}
-              />
 
-              {showResults && searchResults.length > 0 && (
-                <div style={{
-                  position: "absolute", top: "calc(100% + 8px)", right: 0, width: 360,
-                  background: "rgba(10, 11, 15, 0.95)", backdropFilter: "blur(20px)",
-                  border: `1px solid ${C.borderHi}`, borderRadius: 12, overflow: "hidden",
-                  boxShadow: "0 20px 40px rgba(0,0,0,0.8)", zIndex: 100
-                }}>
-                  <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}`, fontSize: 11, color: C.dim, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Search Results
-                  </div>
-                  <div style={{ maxHeight: 400, overflowY: "auto" }}>
-                    {searchResults.map((item, i) => (
-                      <div
-                        key={i}
-                        onClick={() => handleSearchResultClick(item)}
-                        style={{
-                          padding: "12px 16px", cursor: "pointer", borderBottom: i < searchResults.length - 1 ? `1px solid ${C.border}` : "none",
-                          transition: "background 0.2s", display: "flex", alignItems: "center", gap: 12
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
-                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                      >
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#ffffff08", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          {item.type === "transaction" ? <Hash size={14} color={C.uni} /> : item.type === "pool" ? <Layers size={14} color={C.solid} /> : <Coins size={14} color={C.green} />}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</div>
-                          <div style={{ fontSize: 11, color: C.dim, marginTop: 2 }}>{item.sublabel} • {item.type.toUpperCase()}</div>
-                        </div>
-                        {item.value > 0 && (
-                          <div style={{ fontSize: 12, fontWeight: 700, color: C.uni }}>${(item.value / 1e3).toFixed(1)}k</div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </header>
 
           <div style={{ padding: "32px", flex: 1, overflowY: "auto" }}>
-            {view === "overview" ? (
-              <Overview
-                summary={summary}
-                volumeData={volumeData}
-                year={selectedYear} setYear={setSelectedYear}
-                month={selectedMonth} setMonth={setSelectedMonth}
-                loading={loading}
-              />
-            ) : (
-              <ProtocolView
-                proto={view}
-                analytics={protoAnalytics[view]}
-                year={selectedYear} setYear={setSelectedYear}
-                month={selectedMonth} setMonth={setSelectedMonth}
-                loading={protoLoading}
-              />
-            )}
 
-            <div style={{ marginTop: 32 }}>
-              <SwapTable
-                swaps={recentSwaps}
-                chain={swapChain} setChain={setSwapChain}
-                dex={view === "overview" ? swapDex : PROTOCOLS[view].id}
-                setDex={setSwapDex}
-                minUSD={swapMinUSD} setMinUSD={setSwapMinUSD}
-                fixedDex={view === "overview" ? null : PROTOCOLS[view].id}
-                title={view === "overview" ? "Live ecosystem feed" : `Live ${PROTOCOLS[view].label} activity`}
-              />
-            </div>
+            {(() => {
+              const viewLow = view.toLowerCase();
+              const isChain = ["ethereum", "arbitrum", "optimism"].includes(viewLow);
+              const isOverview = viewLow === "overview";
+
+              if (isOverview || isChain) {
+                return (
+                  <Overview
+                    alphaMetrics={alphaMetrics}
+                    loading={loading}
+                    isGlobalView={isOverview}
+                    updatedPools={updatedPools}
+                    onPoolClick={(pool) => {
+                      setSelectedPool(pool);
+                      setView("pool");
+                    }}
+                  />
+                );
+              }
+
+              if (view === "pool" && selectedPool) {
+                return (
+                  <PoolDetails
+                    pool={selectedPool}
+                    onBack={() => setView("overview")}
+                    onPoolClick={(p) => setSelectedPool(p)}
+                  />
+                );
+              }
+
+              return (
+                <ProtocolView
+                  proto={view}
+                  analytics={protoAnalytics[view]}
+                  year={selectedYear} setYear={setSelectedYear}
+                  month={selectedMonth} setMonth={setSelectedMonth}
+                  loading={protoLoading}
+                />
+              );
+            })()}
           </div>
         </main>
       </div>
@@ -1167,9 +1714,3 @@ export default function App() {
   );
 }
 
-const NAV = [
-  { id: "overview", label: "Overview", icon: BarChart3 },
-  { id: "uniswap", label: "Uniswap", icon: Layers, color: C.uni },
-  { id: "sushiswap", label: "Sushiswap", icon: Activity, color: C.sushi },
-  { id: "solidly", label: "Solidly", icon: Activity, color: C.solid },
-];

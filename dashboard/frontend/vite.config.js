@@ -9,7 +9,7 @@ export default defineConfig({
         port: 5173,
         proxy: {
             '/api': {
-                target: 'https://tradeslens.onrender.com',
+                target: 'http://backend:8001',
                 changeOrigin: true,
             }
         }
