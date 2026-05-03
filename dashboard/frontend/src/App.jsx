@@ -39,8 +39,14 @@ import {
   Flame
 } from "lucide-react";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://tradeslens.onrender.com";
-const WS_BASE_URL = API_BASE_URL.replace(/^http/, "ws");
+// Use relative paths to let Nginx/Vite proxy handle the routing
+const API_BASE_URL = "";
+
+const getWsUrl = (path) => {
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const host = window.location.host;
+  return `${protocol}//${host}${path}`;
+};
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 const C = {
@@ -224,9 +230,8 @@ function PoolSidebar({ data, loading, chain }) {
     </div>
   );
 
-  if (!data || !data.data) return null;
+  if (!data?.data?.attributes) return null;
   const attr = data.data.attributes;
-  if (!attr) return null;
   const token = data.included?.find(i => i.type === "token")?.attributes;
 
   const Metric = ({ label, value }) => (
@@ -242,7 +247,7 @@ function PoolSidebar({ data, loading, chain }) {
       <div style={{ textAlign: "center", padding: "4px 2px", background: "#111318", borderRadius: 6, border: `1px solid ${C.border}` }}>
         <div style={{ fontSize: 8, color: C.muted, fontWeight: 800, marginBottom: 1 }}>{label}</div>
         <div style={{ fontSize: 10, fontWeight: 900, color: isPos ? C.green : C.red }}>
-          {isPos ? "+" : ""}{parseFloat(val).toFixed(1)}%
+          {isPos ? "+" : ""}{parseFloat(val || 0).toFixed(1)}%
         </div>
       </div>
     );
@@ -258,7 +263,7 @@ function PoolSidebar({ data, loading, chain }) {
           </div>
           <div>
             <div style={{ fontSize: 16, fontWeight: 900, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
-              {token?.symbol || "TOKEN"} / {attr.name.split(" / ")[1]?.split(" ")[0]}
+              {token?.symbol || "TOKEN"} / {attr.name?.split(" / ")[1]?.split(" ")[0] || "???"}
               <span style={{ fontSize: 10, color: C.green, display: "flex", alignItems: "center", gap: 4 }}>
                 <Leaf size={10} /> {getAge(attr.pool_created_at).split(" ")[0]}
               </span>
@@ -308,30 +313,30 @@ function PoolSidebar({ data, loading, chain }) {
           <div style={{ flex: 1, background: "#111318", padding: "8px", borderRadius: 8, border: `1px solid ${C.border}`, textAlign: "center" }}>
             <div style={{ fontSize: 8, color: C.muted, fontWeight: 800, textTransform: "uppercase", marginBottom: 4 }}>Price</div>
             <div style={{ fontSize: 15, fontWeight: 900, color: "#fff" }}>
-              <PriceValue val={attr.base_token_price_quote_token} /> {attr.name.split(" / ")[1]?.split(" ")[0]}
+              <PriceValue val={attr.base_token_price_quote_token} /> {attr.name?.split(" / ")[1]?.split(" ")[0]}
             </div>
           </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-          <Metric label="Liq" value={fmt(parseFloat(attr.reserve_in_usd))} />
-          <Metric label="FDV" value={fmt(parseFloat(attr.fdv_usd))} />
+          <Metric label="Liq" value={fmt(parseFloat(attr.reserve_in_usd || 0))} />
+          <Metric label="FDV" value={fmt(parseFloat(attr.fdv_usd || 0))} />
           <Metric label="Cap" value={attr.market_cap_usd ? fmt(parseFloat(attr.market_cap_usd)) : "N/A"} />
-          <Metric label="Vol" value={fmt(parseFloat(attr.volume_usd.h24))} />
+          <Metric label="Vol" value={fmt(parseFloat(attr.volume_usd?.h24 || 0))} />
         </div>
       </div>
 
       {/* Performance Grid */}
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: "12px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-          <ChangeBox label="5M" val={attr.price_change_percentage.m5} />
-          <ChangeBox label="1H" val={attr.price_change_percentage.h1} />
-          <ChangeBox label="6H" val={attr.price_change_percentage.h6} />
-          <ChangeBox label="24H" val={attr.price_change_percentage.h24} />
+          <ChangeBox label="5M" val={attr.price_change_percentage?.m5} />
+          <ChangeBox label="1H" val={attr.price_change_percentage?.h1} />
+          <ChangeBox label="6H" val={attr.price_change_percentage?.h6} />
+          <ChangeBox label="24H" val={attr.price_change_percentage?.h24} />
         </div>
       </div>
 
-      {/* Pair Details Section (Based on Screenshot) */}
+      {/* Pair Details Section */}
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: "14px", display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 8, borderBottom: `1px solid ${C.border}` }}>
           <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>Pair created</span>
@@ -341,16 +346,16 @@ function PoolSidebar({ data, loading, chain }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
           <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>Pooled {token?.symbol}</span>
           <div style={{ textAlign: "right" }}>
-            <span style={{ fontSize: 12, color: "#fff", fontWeight: 800 }}>{fmtNum(parseFloat(attr.reserve_in_usd) / 2 / parseFloat(attr.base_token_price_usd))}</span>
-            <span style={{ fontSize: 11, color: C.muted, marginLeft: 6 }}>{fmt(parseFloat(attr.reserve_in_usd) / 2)}</span>
+            <span style={{ fontSize: 12, color: "#fff", fontWeight: 800 }}>{fmtNum(parseFloat(attr.reserve_in_usd || 0) / 2 / parseFloat(attr.base_token_price_usd || 1))}</span>
+            <span style={{ fontSize: 11, color: C.muted, marginLeft: 6 }}>{fmt(parseFloat(attr.reserve_in_usd || 0) / 2)}</span>
           </div>
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
-          <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>Pooled {attr.name.split(" / ")[1]?.split(" ")[0]}</span>
+          <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>Pooled {attr.name?.split(" / ")[1]?.split(" ")[0]}</span>
           <div style={{ textAlign: "right" }}>
-            <span style={{ fontSize: 12, color: "#fff", fontWeight: 800 }}>{fmtNum(parseFloat(attr.reserve_in_usd) / 2 / parseFloat(attr.quote_token_price_usd))}</span>
-            <span style={{ fontSize: 11, color: C.muted, marginLeft: 6 }}>{fmt(parseFloat(attr.reserve_in_usd) / 2)}</span>
+            <span style={{ fontSize: 12, color: "#fff", fontWeight: 800 }}>{fmtNum(parseFloat(attr.reserve_in_usd || 0) / 2 / parseFloat(attr.quote_token_price_usd || 1))}</span>
+            <span style={{ fontSize: 11, color: C.muted, marginLeft: 6 }}>{fmt(parseFloat(attr.reserve_in_usd || 0) / 2)}</span>
           </div>
         </div>
 
@@ -358,7 +363,7 @@ function PoolSidebar({ data, loading, chain }) {
           {[
             { label: "Pair", addr: attr.address, type: "address" },
             { label: token?.symbol, addr: token?.address, type: "token" },
-            { label: attr.name.split(" / ")[1]?.split(" ")[0], addr: data.data.relationships.quote_token.data.id.split("_")[1], type: "token" }
+            { label: attr.name?.split(" / ")[1]?.split(" ")[0], addr: data.data.relationships.quote_token.data.id.split("_")[1], type: "token" }
           ].map((item, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < 2 ? `1px solid ${C.border}` : "none" }}>
               <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{item.label}</span>
@@ -371,8 +376,6 @@ function PoolSidebar({ data, loading, chain }) {
           ))}
         </div>
       </div>
-
-      {/* Security Check */}
     </div>
   );
 }
@@ -387,7 +390,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
 
   useEffect(() => {
     if (!pool?.chain) return;
-    axios.get(`${API_BASE_URL}/api/v1/swaps/market-trending/${pool.chain.toLowerCase()}`)
+    axios.get(`/api/v1/swaps/market-trending/${pool.chain.toLowerCase()}`)
       .then(res => setTrendingItems(res.data))
       .catch(err => console.error("Failed to fetch trending:", err));
   }, [pool.chain]);
@@ -403,7 +406,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
 
     setLoading(true);
     const chainName = pool.chain;
-    axios.get(`${API_BASE_URL}/api/v1/swaps/list/${chainName}/${pool.pool_address}?limit=100`)
+    axios.get(`/api/v1/swaps/list/${chainName}/${pool.pool_address}?limit=100`)
       .then(res => {
         setSwaps(res.data || []);
         setLoading(false);
@@ -416,7 +419,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
 
     setInfoLoading(true);
     const chainSlug = pool.chain.toLowerCase();
-    axios.get(`${API_BASE_URL}/api/v1/swaps/pool-info/${chainSlug}/${pool.pool_address}`)
+    axios.get(`/api/v1/swaps/pool-info/${chainSlug}/${pool.pool_address}`)
       .then(res => {
         setPoolInfo(res.data);
         setInfoLoading(false);
@@ -429,7 +432,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
 
   useEffect(() => {
     const chainSlug = pool.chain.toLowerCase();
-    const wsUrl = `${WS_BASE_URL}/api/v1/swaps/ws/${chainSlug}/${pool.pool_address}`;
+    const wsUrl = getWsUrl(`/api/v1/swaps/ws/${chainSlug}/${pool.pool_address}`);
 
     const socket = new WebSocket(wsUrl);
 
@@ -677,8 +680,6 @@ function Watermark() {
   );
 }
 
-// ── Concise Inspector Overlay (Floating over Live Feed) ───────────────────
-
 // ── Shared Constants ──────────────────────────────────────────────────────
 const MONTHS = [
   { val: "", label: "Full Year" },
@@ -702,7 +703,7 @@ function Overview({ alphaMetrics, loading, isGlobalView, updatedPools, onPoolCli
     if (lastChainRef.current === chainName) return;
 
     lastChainRef.current = chainName;
-    axios.get(`${API_BASE_URL}/api/v1/swaps/market-trending/${chainName.toLowerCase()}`)
+    axios.get(`/api/v1/swaps/market-trending/${chainName.toLowerCase()}`)
       .then(res => setTrendingItems(res.data))
       .catch(err => console.error("Failed to fetch trending in Overview:", err));
   }, [alphaMetrics]);
@@ -965,7 +966,7 @@ function ProtocolView({ proto, analytics, year, setYear, month, setMonth, loadin
 
   useEffect(() => {
     setPoolLoading(true);
-    let url = `${API_BASE_URL}/api/v1/swaps/analytics?dex=${p.id}&year=${poolYear}`;
+    let url = `/api/v1/swaps/analytics?dex=${p.id}&year=${poolYear}`;
     if (poolMonth) url += `&month=${poolMonth}`;
     axios.get(url).then(res => {
       setPoolStats(res.data);
@@ -1151,7 +1152,7 @@ function SearchIntelligenceModal({ query, isOpen, onClose, onSelect }) {
   useEffect(() => {
     if (isOpen && query) {
       setLoading(true);
-      axios.get(`${API_BASE_URL}/api/v1/search/?q=${query}`)
+      axios.get(`/api/v1/search/?q=${query}`)
         .then(res => {
           setResults(res.data.results || []);
           setLoading(false);
@@ -1256,7 +1257,7 @@ function SearchIntelligenceModal({ query, isOpen, onClose, onSelect }) {
                         <div key={i} style={{ padding: 20, background: "#111318", borderRadius: 16, border: `1px solid ${C.border}`, display: "flex", flexDirection: "column", gap: 16 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>{p.label}</div>
-                            <Badge text={p.sublabel.split("@")[1].trim()} color={C.solid} />
+                            <Badge text={p.sublabel.split("@")[1]?.trim() || "???"} color={C.solid} />
                           </div>
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
                             <div>
@@ -1306,8 +1307,6 @@ function SearchIntelligenceModal({ query, isOpen, onClose, onSelect }) {
   );
 }
 
-// ── App Container ──────────────────────────────────────────────────────────
-
 // ── Global Styles ────────────────────────────────────────────────────────
 const GLOBAL_STYLES = `
   .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -1341,7 +1340,6 @@ export default function App() {
 
   const [view, setView] = useState("overview");
   const [selectedPool, setSelectedPool] = useState(null);
-  const [summary, setSummary] = useState(null);
   const [alphaMetrics, setAlphaMetrics] = useState([]);
   const [protoAnalytics, setProtoAnalytics] = useState({});
 
@@ -1350,17 +1348,10 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [protoLoading, setProtoLoading] = useState(false);
 
-  // ... rest of search states ...
   const [searchVal, setSearchVal] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showResults, setShowResults] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  const [wsStatus, setWsStatus] = useState("connecting"); // connecting, open, closed
   const [updatedPools, setUpdatedPools] = useState(new Set());
-
-  const [selectedSwap, setSelectedSwap] = useState(null);
 
   // Sidebar States
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -1377,12 +1368,9 @@ export default function App() {
       };
       setSelectedPool(poolObj);
       setView("pool");
-    } else if (item.type === "token") {
-      // Logic for token click
     }
   };
 
-  // 2. Fetch Alpha Metrics for Overview or Specific Chain
   useEffect(() => {
     const fetchGlobalData = async () => {
       setLoading(true);
@@ -1394,7 +1382,7 @@ export default function App() {
         params.append("chain_name", chainName);
       }
 
-      const url = `${API_BASE_URL}/api/v1/alpha/metrics?${params.toString()}`;
+      const url = `/api/v1/alpha/metrics?${params.toString()}`;
       axios.get(url)
         .then(res => {
           setAlphaMetrics(res.data || []);
@@ -1412,18 +1400,16 @@ export default function App() {
     }
   }, [view]);
 
-  // 3. Real-time WebSocket Logic
   useEffect(() => {
     let socket;
     let reconnectTimer;
 
     const connect = () => {
-      const wsUrl = `${WS_BASE_URL}/api/v1/alpha/ws`;
+      const wsUrl = getWsUrl("/api/v1/alpha/ws");
       console.log(`Connecting to Intelligence Tunnel: ${wsUrl}`);
       socket = new WebSocket(wsUrl);
 
       socket.onopen = () => {
-        console.log("Intelligence tunnel open.");
         setWsStatus("open");
       };
 
