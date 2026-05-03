@@ -47,7 +47,7 @@ async def get_market_trending(chain: str, db: Session = Depends(get_db)):
         query = text("""
             SELECT 
                 pool, token_pool, base_token_symbol, volume_24h, price
-            FROM envio_dev.fct_dex_swaps
+            FROM fct_dex_swaps
             WHERE chain_name = :chain
             ORDER BY volume_24h DESC
             LIMIT 10
@@ -138,7 +138,7 @@ class PoolConnectionManager:
                             base_token_symbol, quote_token_symbol,
                             side, base_asset_amount, quote_asset_amount,
                             swap_price, "amountUSD", chain_name, pool, "txFrom"
-                        FROM envio_dev.fct_pool_swaps
+                        FROM fct_pool_swaps
                         WHERE (chain_name, pool) IN :pool_list
                         AND swap_timestamp > NOW() - INTERVAL '2 minutes'
                         ORDER BY swap_timestamp DESC
@@ -211,7 +211,7 @@ def list_pool_swaps(
             base_token_symbol, quote_token_symbol,
             side, base_asset_amount, quote_asset_amount,
             swap_price, "amountUSD", "txFrom"
-        FROM envio_dev.fct_pool_swaps
+        FROM fct_pool_swaps
         WHERE chain_name = :chain AND pool = :pool
         ORDER BY swap_timestamp DESC
         LIMIT :limit
