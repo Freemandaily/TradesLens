@@ -39,6 +39,15 @@ import {
   Flame
 } from "lucide-react";
 
+// ── API Configuration ───────────────────────────────────────────────────────
+const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
+  ? "" 
+  : "https://tradeslens.onrender.com";
+
+const WS_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+  ? (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host
+  : "wss://tradeslens.onrender.com";
+
 // ── Design tokens ──────────────────────────────────────────────────────────
 const C = {
   bg: "#000000",
@@ -384,7 +393,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
 
   useEffect(() => {
     if (!pool?.chain) return;
-    axios.get(`/api/v1/swaps/market-trending/${pool.chain.toLowerCase()}`)
+    axios.get(`${API_BASE}/api/v1/swaps/market-trending/${pool.chain.toLowerCase()}`)
       .then(res => setTrendingItems(res.data))
       .catch(err => console.error("Failed to fetch trending:", err));
   }, [pool.chain]);
@@ -400,7 +409,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
 
     setLoading(true);
     const chainName = pool.chain;
-    axios.get(`/api/v1/swaps/list/${chainName}/${pool.pool_address}?limit=100`)
+    axios.get(`${API_BASE}/api/v1/swaps/list/${chainName}/${pool.pool_address}?limit=100`)
       .then(res => {
         setSwaps(res.data || []);
         setLoading(false);
@@ -413,7 +422,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
 
     setInfoLoading(true);
     const chainSlug = pool.chain.toLowerCase();
-    axios.get(`/api/v1/swaps/pool-info/${chainSlug}/${pool.pool_address}`)
+    axios.get(`${API_BASE}/api/v1/swaps/pool-info/${chainSlug}/${pool.pool_address}`)
       .then(res => {
         setPoolInfo(res.data);
         setInfoLoading(false);
@@ -425,10 +434,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
   }, [pool?.chain, pool?.pool_address]);
 
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
-    const chainSlug = pool.chain.toLowerCase();
-    const wsUrl = `${protocol}//${host}/api/v1/swaps/ws/${chainSlug}/${pool.pool_address}`;
+    const wsUrl = `${WS_BASE}/api/v1/swaps/ws/${chainSlug}/${pool.pool_address}`;
 
     const socket = new WebSocket(wsUrl);
 
@@ -511,8 +517,8 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
                   {!loading && swaps.length === 0 && (
                     <tr>
                       <td colSpan={8} style={{ padding: 60, textAlign: "center", color: C.dim }}>
-                         <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 6 }}>No Trade History Found</div>
-                         <div style={{ fontSize: 12, color: C.muted }}>This pool exists on GeckoTerminal, but our local indexer hasn't recorded any swaps for it yet.</div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", marginBottom: 6 }}>No Trade History Found</div>
+                        <div style={{ fontSize: 12, color: C.muted }}>This pool exists on GeckoTerminal, but our local indexer hasn't recorded any swaps for it yet.</div>
                       </td>
                     </tr>
                   )}
@@ -701,7 +707,7 @@ function Overview({ alphaMetrics, loading, isGlobalView, updatedPools, onPoolCli
     if (lastChainRef.current === chainName) return;
 
     lastChainRef.current = chainName;
-    axios.get(`/api/v1/swaps/market-trending/${chainName.toLowerCase()}`)
+    axios.get(`${API_BASE}/api/v1/swaps/market-trending/${chainName.toLowerCase()}`)
       .then(res => setTrendingItems(res.data))
       .catch(err => console.error("Failed to fetch trending in Overview:", err));
   }, [alphaMetrics]);
