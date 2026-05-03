@@ -367,7 +367,7 @@ function PoolSidebar({ data, loading, chain }) {
           {[
             { label: "Pair", addr: attr.address, type: "address" },
             { label: token?.symbol, addr: token?.address, type: "token" },
-            { label: attr.name?.split(" / ")[1]?.split(" ")[0], addr: data.data.relationships.quote_token.data.id.split("_")[1], type: "token" }
+            { label: attr.name?.split(" / ")[1]?.split(" ")[0], addr: data?.data?.relationships?.quote_token?.data?.id?.split("_")?.[1], type: "token" }
           ].map((item, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < 2 ? `1px solid ${C.border}` : "none" }}>
               <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{item.label}</span>
