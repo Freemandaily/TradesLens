@@ -1,2 +1,0 @@
-/api/*  https://tradeslens.onrender.com/api/:splat  200
-/ws/*   https://tradeslens.onrender.com/api/:splat  200
