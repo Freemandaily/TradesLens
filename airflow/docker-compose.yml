@@ -298,6 +298,8 @@ services:
         ls -la /opt/airflow/{logs,dags,plugins,config}
 
     # yamllint enable rule:line-length
+    env_file:
+      - ${ENV_FILE_PATH:-.env}
     environment:
       <<: *airflow-common-env
       _AIRFLOW_DB_MIGRATE: "true"
