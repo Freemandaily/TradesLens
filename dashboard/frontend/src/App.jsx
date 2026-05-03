@@ -39,17 +39,8 @@ import {
   Flame
 } from "lucide-react";
 
-const isDev = import.meta.env.DEV;
-const API_BASE_URL = isDev ? "" : (import.meta.env.VITE_API_URL || "https://tradeslens.onrender.com");
-
-const getWsUrl = (path) => {
-  if (!isDev) {
-    const base = API_BASE_URL.replace(/^http/, "ws");
-    return `${base}${path}`;
-  }
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${window.location.hostname}:8001${path}`;
-};
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://tradeslens.onrender.com";
+const WS_BASE_URL = API_BASE_URL.replace(/^http/, "ws");
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 const C = {
@@ -367,7 +358,7 @@ function PoolSidebar({ data, loading, chain }) {
           {[
             { label: "Pair", addr: attr.address, type: "address" },
             { label: token?.symbol, addr: token?.address, type: "token" },
-            { label: attr.name.split(" / ")[1]?.split(" ")[0], addr: data?.data?.relationships?.quote_token?.data?.id?.split("_")?.[1], type: "token" }
+            { label: attr.name.split(" / ")[1]?.split(" ")[0], addr: data.data.relationships.quote_token.data.id.split("_")[1], type: "token" }
           ].map((item, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: i < 2 ? `1px solid ${C.border}` : "none" }}>
               <span style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{item.label}</span>
@@ -438,7 +429,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
 
   useEffect(() => {
     const chainSlug = pool.chain.toLowerCase();
-    const wsUrl = getWsUrl(`/api/v1/swaps/ws/${chainSlug}/${pool.pool_address}`);
+    const wsUrl = `${WS_BASE_URL}/api/v1/swaps/ws/${chainSlug}/${pool.pool_address}`;
 
     const socket = new WebSocket(wsUrl);
 
@@ -1427,7 +1418,7 @@ export default function App() {
     let reconnectTimer;
 
     const connect = () => {
-      const wsUrl = getWsUrl("/api/v1/alpha/ws");
+      const wsUrl = `${WS_BASE_URL}/api/v1/alpha/ws`;
       console.log(`Connecting to Intelligence Tunnel: ${wsUrl}`);
       socket = new WebSocket(wsUrl);
 
