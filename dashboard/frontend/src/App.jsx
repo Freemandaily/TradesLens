@@ -43,6 +43,10 @@ import {
 const API_BASE_URL = "";
 
 const getWsUrl = (path) => {
+  if (import.meta.env.PROD) {
+    // WebSockets on Static Sites (Render/Netlify) must use absolute URLs
+    return `wss://tradeslens.onrender.com${path}`;
+  }
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const host = window.location.host;
   return `${protocol}//${host}${path}`;
