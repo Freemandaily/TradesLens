@@ -426,10 +426,9 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const hostname = window.location.hostname;
-    const port = "8001";
+    const host = window.location.host;
     const chainSlug = pool.chain.toLowerCase();
-    const wsUrl = `${protocol}//${hostname}:${port}/api/v1/swaps/ws/${chainSlug}/${pool.pool_address}`;
+    const wsUrl = `${protocol}//${host}/api/v1/swaps/ws/${chainSlug}/${pool.pool_address}`;
 
     const socket = new WebSocket(wsUrl);
 

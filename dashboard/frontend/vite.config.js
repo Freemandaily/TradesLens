@@ -11,6 +11,7 @@ export default defineConfig({
             '/api': {
                 target: 'https://tradeslens.onrender.com',
                 changeOrigin: true,
+                ws: true,
             }
         }
     }
