@@ -40,13 +40,8 @@ import {
 } from "lucide-react";
 
 // ── API Configuration ───────────────────────────────────────────────────────
-const API_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" 
-  ? "" 
-  : "https://tradeslens.onrender.com";
-
-const WS_BASE = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-  ? (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host
-  : "wss://tradeslens.onrender.com";
+const API_BASE = "https://tradeslens.onrender.com";
+const WS_BASE = "wss://tradeslens.onrender.com";
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 const C = {
