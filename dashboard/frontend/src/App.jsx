@@ -39,6 +39,9 @@ import {
   Flame
 } from "lucide-react";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://tradeslens.onrender.com";
+const WS_BASE_URL = API_BASE_URL.replace(/^http/, "ws");
+
 // ── Design tokens ──────────────────────────────────────────────────────────
 const C = {
   bg: "#000000",
@@ -384,7 +387,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
 
   useEffect(() => {
     if (!pool?.chain) return;
-    axios.get(`/api/v1/swaps/market-trending/${pool.chain.toLowerCase()}`)
+    axios.get(`${API_BASE_URL}/api/v1/swaps/market-trending/${pool.chain.toLowerCase()}`)
       .then(res => setTrendingItems(res.data))
       .catch(err => console.error("Failed to fetch trending:", err));
   }, [pool.chain]);
@@ -400,7 +403,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
 
     setLoading(true);
     const chainName = pool.chain;
-    axios.get(`/api/v1/swaps/list/${chainName}/${pool.pool_address}?limit=100`)
+    axios.get(`${API_BASE_URL}/api/v1/swaps/list/${chainName}/${pool.pool_address}?limit=100`)
       .then(res => {
         setSwaps(res.data || []);
         setLoading(false);
@@ -413,7 +416,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
 
     setInfoLoading(true);
     const chainSlug = pool.chain.toLowerCase();
-    axios.get(`/api/v1/swaps/pool-info/${chainSlug}/${pool.pool_address}`)
+    axios.get(`${API_BASE_URL}/api/v1/swaps/pool-info/${chainSlug}/${pool.pool_address}`)
       .then(res => {
         setPoolInfo(res.data);
         setInfoLoading(false);
@@ -425,10 +428,8 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
   }, [pool?.chain, pool?.pool_address]);
 
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
     const chainSlug = pool.chain.toLowerCase();
-    const wsUrl = `${protocol}//${host}/api/v1/swaps/ws/${chainSlug}/${pool.pool_address}`;
+    const wsUrl = `${WS_BASE_URL}/api/v1/swaps/ws/${chainSlug}/${pool.pool_address}`;
 
     const socket = new WebSocket(wsUrl);
 
@@ -701,7 +702,7 @@ function Overview({ alphaMetrics, loading, isGlobalView, updatedPools, onPoolCli
     if (lastChainRef.current === chainName) return;
 
     lastChainRef.current = chainName;
-    axios.get(`/api/v1/swaps/market-trending/${chainName.toLowerCase()}`)
+    axios.get(`${API_BASE_URL}/api/v1/swaps/market-trending/${chainName.toLowerCase()}`)
       .then(res => setTrendingItems(res.data))
       .catch(err => console.error("Failed to fetch trending in Overview:", err));
   }, [alphaMetrics]);
@@ -964,7 +965,7 @@ function ProtocolView({ proto, analytics, year, setYear, month, setMonth, loadin
 
   useEffect(() => {
     setPoolLoading(true);
-    let url = `/api/v1/swaps/analytics?dex=${p.id}&year=${poolYear}`;
+    let url = `${API_BASE_URL}/api/v1/swaps/analytics?dex=${p.id}&year=${poolYear}`;
     if (poolMonth) url += `&month=${poolMonth}`;
     axios.get(url).then(res => {
       setPoolStats(res.data);
@@ -1150,7 +1151,7 @@ function SearchIntelligenceModal({ query, isOpen, onClose, onSelect }) {
   useEffect(() => {
     if (isOpen && query) {
       setLoading(true);
-      axios.get(`/api/v1/search/?q=${query}`)
+      axios.get(`${API_BASE_URL}/api/v1/search/?q=${query}`)
         .then(res => {
           setResults(res.data.results || []);
           setLoading(false);
@@ -1393,7 +1394,7 @@ export default function App() {
         params.append("chain_name", chainName);
       }
 
-      const url = `/api/v1/alpha/metrics?${params.toString()}`;
+      const url = `${API_BASE_URL}/api/v1/alpha/metrics?${params.toString()}`;
       axios.get(url)
         .then(res => {
           setAlphaMetrics(res.data || []);
@@ -1417,11 +1418,7 @@ export default function App() {
     let reconnectTimer;
 
     const connect = () => {
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const hostname = window.location.hostname;
-      // Backend is on port 8001 per docker-compose
-      const port = "8001";
-      const wsUrl = `${protocol}//${hostname}:${port}/api/v1/alpha/ws`;
+      const wsUrl = `${WS_BASE_URL}/api/v1/alpha/ws`;
       console.log(`Connecting to Intelligence Tunnel: ${wsUrl}`);
       socket = new WebSocket(wsUrl);
 
@@ -1494,7 +1491,7 @@ export default function App() {
     if (view !== "overview" && PROTOCOLS[view]) {
       const dexId = PROTOCOLS[view].id;
       setProtoLoading(true);
-      let url = `/api/v1/swaps/analytics?dex=${dexId}&year=${selectedYear}`;
+      let url = `${API_BASE_URL}/api/v1/swaps/analytics?dex=${dexId}&year=${selectedYear}`;
       if (selectedMonth) url += `&month=${selectedMonth}`;
 
       axios.get(url).then(res => {
