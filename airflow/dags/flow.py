@@ -25,7 +25,7 @@ DBT_PROFILES_DIR = "/opt/airflow/model"
     dag_id='dbt_transformation_flow',
     default_args=default_args,
     description='A flow to run dbt transformations for TradesLens',
-    schedule=timedelta(minutes=10), # Run every 6 hours
+    schedule=timedelta(minutes=5), # Run every 6 hours
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=['dbt', 'dex'],
@@ -64,7 +64,7 @@ def database_flush():
         db = SessionLocal()
         try:
             query = text("""
-                DELETE FROM public."Swap"
+                DELETE FROM envio_v2."Swap"
                 WHERE timestamp < EXTRACT(EPOCH FROM now() - interval '7 days')
             """)
             result = db.execute(query)
@@ -77,19 +77,60 @@ def database_flush():
             db.close()
     
     @task
-    def flush_modeled_swaps():
+    def flush_raw_transactions():
         from sqlalchemy import text
         from database import SessionLocal
 
         db = SessionLocal()
         try:
             query = text("""
-                DELETE FROM envio_dev."stg_dex_swaps"
+                DELETE FROM envio_v2."Transaction"
+                WHERE timestamp < EXTRACT(EPOCH FROM now() - interval '7 days')
+            """)
+            result = db.execute(query)
+            db.commit()
+            print(f'Flushed {result.rowcount} rows older than 7 days from raw transactions')
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            db.close()
+    
+    
+    @task
+    def flush_stg_dex_swaps():
+        from sqlalchemy import text
+        from database import SessionLocal
+
+        db = SessionLocal()
+        try:
+            query = text("""
+                DELETE FROM envio_prod."stg_dex_swaps"
                 WHERE timestamp < EXTRACT(EPOCH FROM now() - interval '7 days')
             """)
             result = db.execute(query)
             db.commit()
             print(f'Flushed {result.rowcount} rows older than 7 days from stg_dex_swaps')
+        except Exception as e:
+            db.rollback()
+            raise e
+        finally:
+            db.close()
+    
+     @task
+    def flush_pools_swaps():
+        from sqlalchemy import text
+        from database import SessionLocal
+
+        db = SessionLocal()
+        try:
+            query = text("""
+                DELETE FROM envio_prod."fct_pool_swaps"
+                WHERE timestamp < EXTRACT(EPOCH FROM now() - interval '7 days')
+            """)
+            result = db.execute(query)
+            db.commit()
+            print(f'Flushed {result.rowcount} rows older than 7 days from fct_pool_swaps')
         except Exception as e:
             db.rollback()
             raise e
