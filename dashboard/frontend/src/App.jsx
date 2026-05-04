@@ -39,8 +39,8 @@ import {
   Flame
 } from "lucide-react";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://tradeslens.onrender.com";
-const WS_BASE_URL = API_BASE_URL.replace(/^http/, "ws");
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+const WS_BASE_URL = API_BASE_URL ? API_BASE_URL.replace(/^http/, "ws") : `ws://${window.location.host}`;
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 const C = {
@@ -396,6 +396,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
   const quoteSymbol = swaps[0]?.quote || "Quote";
 
   const networkSlug = GECKO_MAP[pool.chain] || "eth";
+  console.log('chart  displayed')
   const chartUrl = `https://www.geckoterminal.com/${networkSlug}/pools/${pool.pool_address}?embed=1&info=0&swaps=0&light_chart=0&bg_color=000000`;
 
   useEffect(() => {

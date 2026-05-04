@@ -23,8 +23,6 @@ services:
       - ./frontend:/app
       - /app/node_modules
     command: sh -c "npm install && npm run dev -- --host"
-    depends_on:
-      - backend
     networks:
       - dex_network
 
