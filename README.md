@@ -11,9 +11,9 @@
 *   **Dual-Protocol Intelligence**: 
     *   **DEX Analytics**: Unified data for Uniswap V3, SushiSwap V3, and Solidly V3.
     *   **Lending Marketplace**: Comprehensive tracking of Supply, Borrow, Repay, and Liquidation events (e.g., Aave V3).
-*   **Clean Data Marts**: Standardized, analyst-ready format for both Swaps (`fct_dex_swaps`) and Money Markets (`fact_supply`, `fact_borrow`, etc.).
+*   **Clean Data Marts**: Standardized, analyst-ready format for both Swaps (`fct_dex_swaps`)  
 *   **Incremental Processing**: Optimized dbt models that process millions of events in seconds using incremental merge strategies.
-*   **Full Infrastructure**: Containerized deployment using Docker, featuring TimescaleDB for time-series optimization and Hasura for GraphQL API access.
+*   **Full Infrastructure**: Containerized deployment using Docker, featuring TimescaleDB for time-series optimization.
 
 ---
 
@@ -23,6 +23,7 @@
 | **Ingestion** | [Envio HyperIndex](https://envio.dev/) | Ultra-fast multi-chain event indexing & factory monitoring |
 | **Modeling** | [dbt-core](https://www.getdbt.com/) | Incremental data normalization & Medallion architecture |
 | **Database** | [TimescaleDB](https://www.timescale.com/) | Time-series optimized PostgreSQL |
+| **Orchestration** | [Apache Airflow](https://airflow.apache.org/) | Automated DAGs for dbt modeling & DB maintenance |
 | **Intelligence API** | [FastAPI](https://fastapi.tiangolo.com/) | High-performance analytical backend |
 | **Frontend** | [React 19](https://react.dev/) + [Vite](https://vitejs.dev/) | Cinematic terminal UI with real-time charting |
 
@@ -37,6 +38,8 @@
 │   ├── models/staging/            # Raw data normalization
 │   ├── models/intermediate/       # Cross-chain & asset enrichment
 │   └── models/marts/              # Analytical Fact Tables
+├── airflow/                       # Orchestration layer
+│   └── dags/                      # Airflow DAGs (dbt & DB maintenance)
 └── dashboard/
     ├── backend/                   # FastAPI Intelligence API
     └── frontend/                  # React 19 Analytical Dashboard
@@ -67,8 +70,25 @@ cd Indexers/lending-borrowing-indexer
 docker-compose up --build
 ```
 
-#### 3. Data Processing (dbt)
-Once the indexers are running and the database is populated, standardize your data using the dbt pipeline:
+#### 3. Data Orchestration (Airflow)
+TradesLens uses Airflow to automate data transformations and manage database health.
+
+**Setup Airflow:**
+```bash
+cd airflow
+# Initialize the database
+docker-compose up airflow-init
+# Start the cluster
+docker-compose up -d
+```
+Once started, access the Airflow UI at `http://localhost:8080` (default: `airflow`/`airflow`).
+
+**Available DAGs:**
+*   `dbt_transformation_flow`: Runs `dbt deps` and `dbt run` incrementally every 5 minutes.
+*   `database-flush`: Performs daily maintenance to purge data older than 7 days from raw and staging tables.
+
+#### 4. Manual Processing (Optional dbt)
+If you prefer to run transformations manually:
 ```bash
 cd model
 uv run dbt build
@@ -77,8 +97,8 @@ uv run dbt build
 #### 4. Start the Intelligence Dashboard
 ```bash
 # Start Backend & API
-cd dashboard/backend
-docker-compose up --build
+cd dashboard
+docker-compose up --build backend
 
 # Start Frontend
 cd ../frontend
@@ -88,6 +108,8 @@ npm install && npm run dev
 ---
 
 ### 📊 Intelligence Lineage (Medallion Architecture)
+The pipeline is fully orchestrated via Airflow, ensuring real-time data flows from ingestion to intelligence:
+
 1.  **Bronze (Raw)**: Indexed protocol events (Swaps, Supply, Borrow) via Envio HyperIndex.
 2.  **Silver (Normalized)**: Standardized columns, USD pricing derivation, and chain attribution (Intermediate layer).
 3.  **Gold (Intelligence)**: Unified Fact tables (`fct_dex_swaps`, `fact_supply`, `fact_borrow`) ready for analytical consumption.
@@ -99,3 +121,4 @@ TradesLens is built for transparency and deep on-chain visibility.
 *   **GitHub**: [TradesLens Repository](https://github.com/Freemandaily/TradesLens)
 *   **Author**: Onah Innocent (Freeman)
 *   **X**: [@Freemandayly](https://x.com/freemandayly)
+*   **LinkedIn**: [Onah Innocent](https://www.linkedin.com/in/onah-innocent-69ba32112/)

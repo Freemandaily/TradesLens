@@ -25,7 +25,7 @@ DBT_PROFILES_DIR = "/opt/airflow/model"
     dag_id='dbt_transformation_flow',
     default_args=default_args,
     description='A flow to run dbt transformations for TradesLens',
-    schedule=timedelta(minutes=5), # Run every 6 hours
+    schedule=timedelta(minutes=5), # Run every 5 minutes
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=['dbt', 'dex'],
@@ -117,7 +117,7 @@ def database_flush():
         finally:
             db.close()
     
-     @task
+    @task
     def flush_pools_swaps():
         from sqlalchemy import text
         from database import SessionLocal
@@ -138,6 +138,8 @@ def database_flush():
             db.close()
 
     flush_raw_swaps()
-    flush_modeled_swaps()
+    flush_raw_transactions()
+    flush_stg_dex_swaps()
+    flush_pools_swaps()
 
 database_flush()
