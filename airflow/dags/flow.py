@@ -89,7 +89,7 @@ def database_flush():
             """)
             result = db.execute(query)
             db.commit()
-            print(f'Flushed {result.rowcount} rows older than 7 days from raw transactions')
+            print(f'Flushed {result.rowcount} rows older than 7 days from raw Transactions')
         except Exception as e:
             db.rollback()
             raise e
