@@ -49,7 +49,7 @@ dbt_transformation_flow()
 @dag(
     dag_id='database-flush',
     description='A flow to flush unanted data from the database',
-    schedule="@daily", # Run every daily
+    schedule=timedelta(minutes=5), # Run every daily
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=['database', 'flush'],
