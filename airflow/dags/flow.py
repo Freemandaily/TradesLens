@@ -50,7 +50,7 @@ dbt_transformation_flow()
     dag_id='database-flush',
     default_args=default_args,
     description='A flow to flush unanted data from the database',
-    schedule=timedelta(minutes=5), # Run every daily
+    schedule='@daily', # Run every daily
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=['database', 'flush'],
