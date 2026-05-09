@@ -48,6 +48,7 @@ dbt_transformation_flow()
 
 @dag(
     dag_id='database-flush',
+    default_args=default_args,
     description='A flow to flush unanted data from the database',
     schedule=timedelta(minutes=5), # Run every daily
     start_date=datetime(2024, 1, 1),
@@ -137,11 +138,6 @@ def database_flush():
         finally:
             db.close()
 
-    (
-        flush_raw_swaps()
-        >> flush_raw_transactions()
-        >> flush_stg_dex_swaps()
-        >> flush_pools_swaps()
-    )
-
+    
+    flush_raw_swaps() >> flush_raw_transactions() >> flush_stg_dex_swaps() >> flush_pools_swaps()
 database_flush()
