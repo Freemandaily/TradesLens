@@ -137,9 +137,11 @@ def database_flush():
         finally:
             db.close()
 
-    flush_raw_swaps()
-    flush_raw_transactions()
-    flush_stg_dex_swaps()
-    flush_pools_swaps()
+    (
+        flush_raw_swaps()
+        >> flush_raw_transactions()
+        >> flush_stg_dex_swaps()
+        >> flush_pools_swaps()
+    )
 
 database_flush()
