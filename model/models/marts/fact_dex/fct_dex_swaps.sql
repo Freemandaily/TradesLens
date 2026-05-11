@@ -37,4 +37,37 @@ metrics as (
     from all_pool_metrics
 )
 
-select * from metrics
+select 
+    mt.pool,
+    mt.token_pool,
+    mt.base_token_address,
+    mt.base_token_symbol,
+    mt.chain_name,
+    mt.price,
+    mt.volume,
+    mt.pool_revenue,
+    mt.volume_24h,
+    mt.volume_3d,
+    mt.volume_7d,
+    mt.total_buy_5m,
+    mt.total_sell_5m,
+    mt.total_buy_10m,
+    mt.total_sell_10m,
+    mt.total_buy_24h,
+    mt.total_sell_24h,
+    mt.avg_swap_volume,
+    pc.current_price,
+    pc.price_5m_ago,
+    pc.price_1h_ago,
+    pc.price_6h_ago,
+    pc.price_24h_ago,
+    pc.change_5m,
+    pc.change_1h,
+    pc.change_6h,
+    pc.change_24h,
+    pc.pct_change_5m,
+    pc.pct_change_1h,
+    pc.pct_change_6h,
+    pc.pct_change_24h
+from metrics mt
+left join {{ref('price_changes')}} pc ON mt.pool = pc.pool

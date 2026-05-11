@@ -176,40 +176,47 @@ const PriceValue = ({ val }) => {
 };
 function TrendingTicker({ items, onPoolClick, chain }) {
   if (!items || items.length === 0) return null;
+  // Duplicate items for a seamless loop
+  const displayItems = [...items, ...items, ...items];
+
   return (
     <div className="no-scrollbar" style={{
-      display: "flex", alignItems: "center", gap: 20, overflowX: "auto",
-      padding: "10px 16px", background: "#050505", borderBottom: `1px solid ${C.border}`,
-      marginLeft: -32, marginRight: -32, marginTop: -32, marginBottom: 0
+      overflow: "hidden",
+      background: "#050505", borderBottom: `1px solid ${C.border}`,
+      marginLeft: -32, marginRight: -32, marginTop: -32, marginBottom: 0,
+      position: "relative",
+      display: "flex",
+      alignItems: "center"
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, paddingRight: 16, borderRight: `1px solid ${C.border}` }}>
-        <span style={{ fontSize: 12 }}>🔥</span>
-      </div>
-      {items.map((item, i) => {
-        const change = item.price_change_24h || 0;
-        const isPos = change >= 0;
-        return (
-          <div
-            key={i}
-            onClick={() => onPoolClick && onPoolClick({ pool_address: item.pool_address, chain, pair: item.pair })}
-            style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", cursor: "pointer" }}
-          >
-            <div style={{
-              background: "rgba(99, 102, 241, 0.15)", color: "#818cf8", fontSize: 10,
-              fontWeight: 900, padding: "2px 6px", borderRadius: 4, border: "1px solid rgba(99, 102, 241, 0.3)"
-            }}>
-              {i + 1}
+      {/* Moving Content Container */}
+      <div className="animate-ticker" style={{
+        display: "flex", alignItems: "center", gap: 15, whiteSpace: "nowrap",
+        padding: "10px 0",
+        animationDuration: `${Math.max(items.length * 12, 60)}s` // Constant speed: ~12s per original item set
+      }}>
+        {displayItems.map((item, i) => {
+          const change = item.price_change_24h || 0;
+          const isPos = change >= 0;
+          return (
+            <div
+              key={i}
+              onClick={() => onPoolClick && onPoolClick({ pool_address: item.pool_address, chain, pair: item.pair })}
+              style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", padding: "0 5px" }}
+            >
+              <div style={{
+                background: "rgba(99, 102, 241, 0.15)", color: "#818cf8", fontSize: 10,
+                fontWeight: 900, padding: "1px 6px", borderRadius: 4, border: "1px solid rgba(99, 102, 241, 0.3)"
+              }}>
+                {(i % items.length) + 1}
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{item.symbol}</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: isPos ? C.green : C.red }}>
+                {isPos ? "+" : ""}{change.toFixed(2)}%
+              </span>
             </div>
-            {item.image_url && (
-              <img src={item.image_url} style={{ width: 18, height: 18, borderRadius: "50%" }} alt="t" />
-            )}
-            <span style={{ fontSize: 12, fontWeight: 800, color: "#fff" }}>{item.symbol}</span>
-            <span style={{ fontSize: 11, fontWeight: 800, color: isPos ? C.green : C.red }}>
-              {isPos ? "+" : ""}{change.toFixed(2)}%
-            </span>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -691,7 +698,7 @@ const MONTHS = [
 
 // ── Overview page ──────────────────────────────────────────────────────────
 function Overview({ alphaMetrics, loading, isGlobalView, updatedPools, onPoolClick }) {
-  const [sortConfig, setSortConfig] = useState({ key: "metrics.volume_24h", dir: "desc" });
+  const [sortConfig, setSortConfig] = useState({ key: "price_change.pct_24h", dir: "desc" });
   const [page, setPage] = useState(0);
   const pageSize = 30;
   const [trendingItems, setTrendingItems] = useState([]);
@@ -738,14 +745,13 @@ function Overview({ alphaMetrics, loading, isGlobalView, updatedPools, onPoolCli
   const HEADERS = [
     { label: "Pair", key: "pair", type: "text" },
     { label: "Price", key: "current_price" },
-    { label: "Volume", key: "metrics.total_volume" },
     { label: "24h Vol", key: "metrics.volume_24h" },
     { label: "3d Vol", key: "metrics.volume_3d" },
     { label: "7d Vol", key: "metrics.volume_7d" },
-    { label: "Buy (5m)", key: "pressure.buy_5m" },
-    { label: "Sell (5m)", key: "pressure.sell_5m" },
-    { label: "Buy (10m)", key: "pressure.buy_10m" },
-    { label: "Sell (10m)", key: "pressure.sell_10m" }
+    { label: "5M", key: "price_change.pct_5m" },
+    { label: "1H", key: "price_change.pct_1h" },
+    { label: "6H", key: "price_change.pct_6h" },
+    { label: "24H", key: "price_change.pct_24h" }
   ];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -772,9 +778,10 @@ function Overview({ alphaMetrics, loading, isGlobalView, updatedPools, onPoolCli
             </span>
             <div style={{ width: 1, height: 12, background: C.border, marginRight: 4 }} />
             {[
-              { id: "metrics.volume_24h", label: "24H" },
-              { id: "metrics.volume_3d", label: "3D" },
-              { id: "metrics.volume_7d", label: "7D" }
+              { id: "price_change.pct_5m", label: "5M" },
+              { id: "price_change.pct_1h", label: "1H" },
+              { id: "price_change.pct_6h", label: "6H" },
+              { id: "price_change.pct_24h", label: "24H" }
             ].map(tf => {
               const active = sortConfig.key === tf.id;
               return (
@@ -805,7 +812,7 @@ function Overview({ alphaMetrics, loading, isGlobalView, updatedPools, onPoolCli
                       key={h.key}
                       onClick={() => toggleSort(h.key)}
                       style={{
-                        textAlign: "left", fontSize: 10, color: isActive ? C.uni : C.muted,
+                        textAlign: "left", fontSize: 12, color: isActive ? C.uni : "#fff",
                         fontWeight: 800, padding: "12px 16px", textTransform: "uppercase",
                         letterSpacing: "0.05em", cursor: "pointer", userSelect: "none",
                         position: "relative"
@@ -873,9 +880,6 @@ function Overview({ alphaMetrics, loading, isGlobalView, updatedPools, onPoolCli
                   <td style={{ padding: "12px 16px", verticalAlign: "middle", fontSize: 13, fontWeight: 700, color: "#fff" }}>
                     ${m.current_price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 }) || "0.00"}
                   </td>
-                  <td style={{ padding: "12px 16px", verticalAlign: "middle", fontSize: 14, fontWeight: 800, color: "#fff" }}>
-                    {fmt(m.metrics?.total_volume)}
-                  </td>
                   <td style={{ padding: "12px 16px", verticalAlign: "middle", fontSize: 14, fontWeight: 700, color: "#fff" }}>
                     {fmt(m.metrics?.volume_24h)}
                   </td>
@@ -886,16 +890,40 @@ function Overview({ alphaMetrics, loading, isGlobalView, updatedPools, onPoolCli
                     {fmt(m.metrics?.volume_7d)}
                   </td>
                   <td style={{ padding: "12px 16px", verticalAlign: "middle" }}>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: C.green }}>{fmt(m.pressure?.buy_5m)}</span>
+                    <span style={{
+                      fontSize: 14,
+                      fontWeight: 800,
+                      color: (m.price_change?.pct_5m > 0 ? C.green : m.price_change?.pct_5m < 0 ? C.red : "#fff")
+                    }}>
+                      {m.price_change?.pct_5m > 0 ? "+" : ""}{(m.price_change?.pct_5m ?? 0).toFixed(2)}%
+                    </span>
                   </td>
                   <td style={{ padding: "12px 16px", verticalAlign: "middle" }}>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: C.red }}>{fmt(m.pressure?.sell_5m)}</span>
+                    <span style={{
+                      fontSize: 14,
+                      fontWeight: 800,
+                      color: (m.price_change?.pct_1h > 0 ? C.green : m.price_change?.pct_1h < 0 ? C.red : "#fff")
+                    }}>
+                      {m.price_change?.pct_1h > 0 ? "+" : ""}{(m.price_change?.pct_1h ?? 0).toFixed(2)}%
+                    </span>
                   </td>
                   <td style={{ padding: "12px 16px", verticalAlign: "middle" }}>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: C.green }}>{fmt(m.pressure?.buy_10m)}</span>
+                    <span style={{
+                      fontSize: 14,
+                      fontWeight: 800,
+                      color: (m.price_change?.pct_6h > 0 ? C.green : m.price_change?.pct_6h < 0 ? C.red : "#fff")
+                    }}>
+                      {m.price_change?.pct_6h > 0 ? "+" : ""}{(m.price_change?.pct_6h ?? 0).toFixed(2)}%
+                    </span>
                   </td>
                   <td style={{ padding: "12px 16px", verticalAlign: "middle" }}>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: C.red }}>{fmt(m.pressure?.sell_10m)}</span>
+                    <span style={{
+                      fontSize: 14,
+                      fontWeight: 800,
+                      color: (m.price_change?.pct_24h > 0 ? C.green : m.price_change?.pct_24h < 0 ? C.red : "#fff")
+                    }}>
+                      {m.price_change?.pct_24h > 0 ? "+" : ""}{(m.price_change?.pct_24h ?? 0).toFixed(2)}%
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -1330,6 +1358,19 @@ const GLOBAL_STYLES = `
   .animate-spin-slow { animation: spin 3s linear infinite; }
   .animate-spin-fast { animation: spin 1s linear infinite; }
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  @keyframes ticker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-33.33%); }
+  }
+  .animate-ticker {
+    display: flex;
+    animation: ticker 160s linear infinite;
+  }
+  .animate-ticker:hover {
+    animation-play-state: paused;
+  }
+
 `;
 
 export default function App() {
@@ -1597,7 +1638,7 @@ export default function App() {
               {!isEffectiveCollapsed && <span>Overview</span>}
             </button>
 
-            {!isEffectiveCollapsed && <div style={{ fontSize: 10, color: C.dim, letterSpacing: ".08em", textTransform: "uppercase", padding: "4px 12px 10px", fontWeight: 700, opacity: 0.8 }}>Network Segments</div>}
+            {!isEffectiveCollapsed && <div style={{ fontSize: 10, color: C.dim, letterSpacing: ".08em", textTransform: "uppercase", padding: "4px 12px 10px", fontWeight: 700, opacity: 0.8 }}>Networks</div>}
             {NAV.filter(n => n.id !== "overview").map(item => {
               const active = view === item.id;
               const Icon = item.icon;

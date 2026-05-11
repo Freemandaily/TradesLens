@@ -9,13 +9,15 @@ contracts:
   - name: UniswapV3Factory
     handler: src/handlers/factory.ts
     events:
-      - event: PoolCreated(address indexed token0, address indexed token1, uint24
+      - event:
+          PoolCreated(address indexed token0, address indexed token1, uint24
           indexed fee, int24 tickSpacing, address pool)
   - name: UniswapV3Pool
     handler: src/handlers/pool.ts
     events:
       - event: Initialize(uint160 sqrtPriceX96, int24 tick)
-      - event: Swap(address indexed sender, address indexed recipient, int256 amount0,
+      - event:
+          Swap(address indexed sender, address indexed recipient, int256 amount0,
           int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)
         field_selection:
           transaction_fields:

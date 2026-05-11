@@ -43,26 +43,27 @@ async def get_market_trending(chain: str, db: Session = Depends(get_db)):
             return data
 
     try:
-        # Query top 10 pools by 24h volume for this chain
+        # Query top 10 pools by 24h price performance for this chain
         query = text("""
             SELECT 
-                pool, token_pool, base_token_symbol, volume_24h, price
+                pool, token_pool, base_token_symbol, volume_24h, price, pct_change_24h
             FROM fct_dex_swaps
             WHERE chain_name = :chain
-            ORDER BY volume_24h DESC
-            LIMIT 10
+            and pct_change_6h > 0 and pct_change_24h > 0
+            ORDER BY pct_change_24h DESC
         """)
         
         results = db.execute(query, {"chain": target_chain}).all()
         
         pools = []
         for r in results:
+        
             pools.append({
                 "pool_address": r.pool,
                 "pair": r.token_pool,
                 "symbol": r.base_token_symbol,
-                "image_url": None, # We don't store logos in DB
-                "price_change_24h": 0.0 # Not available in aggregated table
+                "image_url": None, 
+                "price_change_24h": float(r.pct_change_24h) if r.pct_change_24h else 0.0
             })
         
         # Update Cache

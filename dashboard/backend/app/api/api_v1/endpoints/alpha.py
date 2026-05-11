@@ -106,10 +106,22 @@ def fetch_alpha_metrics_data(db: Session, chain_name: Optional[str] = None, limi
             total_sell_10m,
             total_buy_24h,
             total_sell_24h,
-            avg_swap_volume
+            avg_swap_volume,
+            price_5m_ago,
+            price_1h_ago,
+            price_6h_ago,
+            price_24h_ago,
+            change_5m,
+            change_1h,
+            change_6h,
+            change_24h,
+            pct_change_5m,
+            pct_change_1h,
+            pct_change_6h,
+            pct_change_24h
         FROM fct_dex_swaps
         {where_stmt}
-        ORDER BY volume_24h DESC
+        ORDER BY pct_change_24h DESC
         LIMIT :limit OFFSET :offset
     """)
 
@@ -132,6 +144,12 @@ def fetch_alpha_metrics_data(db: Session, chain_name: Optional[str] = None, limi
                 "total_volume": float(r.total_volume) if r.total_volume else 0.0,
                 "revenue": float(r.pool_revenue) if r.pool_revenue else 0.0,
                 "avg_swap_size": float(r.avg_swap_volume) if r.avg_swap_volume else 0.0
+            },
+            "price_change": {
+                "pct_5m": float(r.pct_change_5m) if r.pct_change_5m else 0.0,
+                "pct_1h": float(r.pct_change_1h) if r.pct_change_1h else 0.0,
+                "pct_6h": float(r.pct_change_6h) if r.pct_change_6h else 0.0,
+                "pct_24h": float(r.pct_change_24h) if r.pct_change_24h else 0.0
             },
             "pressure": {
                 "buy_5m": float(r.total_buy_5m) if r.total_buy_5m else 0.0,
