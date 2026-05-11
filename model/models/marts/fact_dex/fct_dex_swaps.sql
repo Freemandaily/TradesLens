@@ -32,7 +32,8 @@ metrics as (
         total_sell_10m,
         total_buy_24h,
         total_sell_24h,
-        avg_swap_volume
+        avg_swap_volume,
+        pool_create_date
         
     from all_pool_metrics
 )
@@ -56,6 +57,7 @@ select
     mt.total_buy_24h,
     mt.total_sell_24h,
     mt.avg_swap_volume,
+    mt.pool_create_date,
     pc.current_price,
     pc.price_5m_ago,
     pc.price_1h_ago,

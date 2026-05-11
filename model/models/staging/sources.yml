@@ -138,6 +138,12 @@ sources:
               - not_null
               - unique
 
+          - name: createdAtTimestamp
+            description: "Timestamp of pool creation"
+            data_type: numeric
+            data_tests:
+              - not_null
+
           - name: dex
             description: "DEX identifier"
             data_type: text
@@ -147,6 +153,19 @@ sources:
           - name: feeTier
             description: "Fee tier of the pool (in hundredths of a bip)"
             data_type: numeric
+
+          - name: token0_id
+            description: "Token0 in the pool"
+            data_type: text
+            data_tests:
+              - not_null
+
+          - name: token1_id
+            description: "Token1 in the pool"
+            data_type: text
+            data_tests:
+              - not_null
+
   # - name: lending_borrowing_v3
   #   schema: envio_lending
   #   database: tsdb

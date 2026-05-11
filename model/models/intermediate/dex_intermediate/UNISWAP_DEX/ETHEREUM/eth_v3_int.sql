@@ -143,6 +143,9 @@ select
     a.total_sell_10m,
     a.total_buy_24h,
     a.total_sell_24h,
-    a.avg_swap_volume
+    a.avg_swap_volume,
+    p.pool_create_date
 from agg_metrics a
 left join latest_prices lp on a.pool = lp.pool
+left join {{ ref('dex_pool') }} p on a.pool = p.pool_address and a.chain_name = p.chain_name
+

@@ -8,6 +8,7 @@ from app.api.api_v1.endpoints import (
 
 api_router = APIRouter()
 
+
 api_router.include_router(stats.router, prefix="/stats", tags=["Global Statistics"])
 api_router.include_router(search.router, prefix="/search", tags=["Global Search"])
 api_router.include_router(alpha.router, prefix="/alpha", tags=["Alpha Intelligence"])

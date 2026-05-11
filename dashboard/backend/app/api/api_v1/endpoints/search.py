@@ -11,98 +11,128 @@ router = APIRouter()
 
 @router.get("/")
 def universal_search(
-    q: str = Query(..., min_length=1, description="Search query (tx hash, address, or symbol)"),
+    q: Optional[str] = Query(None, description="Search query (tx hash, address, or symbol)"),
     db: Session = Depends(get_db)
 ):
     """
-    Universal search for:
-    1. Transaction hashes (exact 0x...)
-    2. Pool addresses (exact 0x...)
-    3. Token symbols (fuzzy partial match)
+    Unified Search & Discovery Service:
+    - No query (q is None): Returns 'Latest' and 'Top' trending pools.
+    - With query: Performs universal search across tx hashes, pools, and symbols.
     """
     try:
-        q = q.strip()
-        results = []
-
-        # 1. Detect if it's likely a hash or address
-        is_hex = q.startswith("0x")
-        
-        if is_hex:
-            # Check for Transaction Hash (66 chars)
-            if len(q) == 66:
-                tx_query = text("""
-                    SELECT 
-                        tx_hash as id,
-                        'transaction' as type,
-                        dex || ' Swap' as label,
-                        chain_name as sublabel,
-                        "amountUSD" as value,
-                        token_bought_symbol as token_bought,
-                        token_sold_symbol as token_sold,
-                        amount_bought,
-                        amount_sold,
-                        timestamp
-                    FROM fct_dex_swaps
-                    WHERE tx_hash = :q
-                    LIMIT 1
-                """)
-                tx_res = db.execute(tx_query, {"q": q}).first()
-                if tx_res:
-                    results.append(dict(tx_res._mapping))
-
-            # Check for Pool Address (42 chars)
-            elif len(q) == 42:
-                pool_query = text("""
-                    SELECT 
-                        pool as id,
-                        'pool' as type,
-                        token_bought_symbol || '/' || token_sold_symbol as label,
-                        dex || ' @ ' || chain_name as sublabel,
-                        SUM("amountUSD") as value,
-                        COUNT(*) as swap_count,
-                        AVG("amountUSD") as avg_trade_size
-                    FROM fct_dex_swaps
-                    WHERE pool = :q
-                    GROUP BY 1, 2, 3, 4
-                    LIMIT 1
-                """)
-                pool_res = db.execute(pool_query, {"q": q}).first()
-                if pool_res:
-                    results.append(dict(pool_res._mapping))
-
-        # 2. Search by Token Symbol (always do this if not enough results yet)
-        if len(results) < 5:
-            # Search for tokens in either bought or sold columns
-            token_query = text("""
-                SELECT DISTINCT 
-                    symbol as id,
-                    'token' as type,
-                    symbol as label,
-                    'Token' as sublabel,
-                    SUM(vol) as value
-                FROM (
-                    SELECT token_bought_symbol as symbol, SUM("amountUSD") as vol 
-                    FROM fct_dex_swaps WHERE token_bought_symbol ILIKE :q GROUP BY 1
-                    UNION ALL
-                    SELECT token_sold_symbol as symbol, SUM("amountUSD") as vol 
-                    FROM fct_dex_swaps WHERE token_sold_symbol ILIKE :q GROUP BY 1
-                ) t
-                GROUP BY 1, 2, 3, 4
-                ORDER BY value DESC
+        if not q or q.strip() == "":
+            # --- DISCOVERY MODE ---
+            logger.info("Executing Discovery Mode (No Query)")
+            
+            # 1. Latest Pools (Newest deployments)
+            latest_query = text("""
+                SELECT 
+                    pool as pool_address,
+                    token_pool as pair,
+                    base_token_symbol,
+                    chain_name,
+                    current_price as price,
+                    volume as total_volume,
+                    pool_create_date as created_at
+                FROM fct_dex_swaps
+                WHERE pool_create_date IS NOT NULL
+                ORDER BY pool_create_date DESC
                 LIMIT 10
             """)
+            latest_res = db.execute(latest_query).all()
+            
+            # 2. Top Pools (Trending momentum)
+            top_query = text("""
+                SELECT 
+                    pool as pool_address,
+                    token_pool as pair,
+                    base_token_symbol,
+                    chain_name,
+                    current_price as price,
+                    volume as total_volume,
+                    pool_create_date as created_at,
+                    pct_change_24h,
+                    pct_change_6h
+                FROM fct_dex_swaps
+                WHERE pct_change_6h > 0 AND pct_change_24h > 0
+                  AND pool_create_date IS NOT NULL
+                ORDER BY pool_create_date DESC, pct_change_24h DESC
+                LIMIT 10
+            """)
+            top_res = db.execute(top_query).all()
+
+            return {
+                "discovery": True,
+                "latest": [dict(r._mapping) for r in latest_res],
+                "top": [dict(r._mapping) for r in top_res]
+            }
+
+        # --- SEARCH MODE ---
+        q = q.strip()
+        logger.info(f"Executing Search Mode for: {q}")
+        results = []
+        is_hex = q.startswith("0x")
+        
+        if is_hex and len(q) == 42:
+            # Smart Address Search: Check if it's a Pool or a Token (bought/sold)
+            # This returns the pool detail fields requested
+            addr_query = text("""
+                SELECT 
+                    pool as pool_address,
+                    token_pool as pair,
+                    base_token_address,
+                    base_token_symbol,
+                    chain_name,
+                    current_price as price,
+                    volume_24h,
+                    pool_create_date as created_at,
+                    pct_change_1h,
+                    pct_change_6h,
+                    pct_change_24h,
+                    'pool' as type
+                FROM fct_dex_swaps 
+                WHERE pool = :q 
+                   OR base_token_address = :q
+                ORDER BY volume_24h DESC
+                LIMIT 20
+            """)
+            addr_res = db.execute(addr_query, {"q": q}).all()
+            results = [dict(r._mapping) for r in addr_res]
+
+        # If not an address or no address matches found, try Symbol Search
+        if not results:
+            token_query = text("""
+                SELECT 
+                    pool as pool_address,
+                    token_pool as pair,
+                    base_token_address,
+                    base_token_symbol,
+                    chain_name,
+                    current_price as price,
+                    volume_24h,
+                    pool_create_date as created_at,
+                    pct_change_1h,
+                    pct_change_6h,
+                    pct_change_24h,
+                    'token' as type
+                FROM fct_dex_swaps
+                WHERE base_token_symbol ILIKE :q 
+                ORDER BY volume_24h DESC
+                LIMIT 15
+            """)
             token_matches = db.execute(token_query, {"q": f"%{q}%"}).all()
-            for r in token_matches:
-                # Avoid duplicates if we already found this via address (unlikely here but good practice)
-                if not any(res["id"] == r.id for res in results):
-                    results.append(dict(r._mapping))
+            results = [dict(r._mapping) for r in token_matches]
 
         return {
-            "query": q,
-            "count": len(results),
+            "query": q, 
+            "count": len(results), 
             "results": results
         }
 
     except Exception as e:
-        logger.error(f"SEARCH ERROR: {str(e)}", exc_info=True)
-        return {"query": q, "count": 0, "results": [], "error": str(e)}
+        logger.error(f"UNIFIED SEARCH ERROR: {str(e)}", exc_info=True)
+        return {"error": str(e), "latest": [], "top": []}
+
+    except Exception as e:
+        logger.error(f"UNIFIED SEARCH ERROR: {str(e)}", exc_info=True)
+        return {"error": str(e), "latest": [], "top": []}

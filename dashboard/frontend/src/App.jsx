@@ -36,7 +36,9 @@ import {
   Globe,
   PlusCircle,
   Leaf,
-  Flame
+  Flame,
+  Copy,
+  Check
 } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
@@ -235,6 +237,13 @@ function PoolSidebar({ data, loading, chain }) {
   const attr = data.data.attributes;
   if (!attr) return null;
   const token = data.included?.find(i => i.type === "token")?.attributes;
+  const [copiedLabel, setCopiedLabel] = useState(null);
+
+  const handleCopy = (addr, label) => {
+    navigator.clipboard.writeText(addr);
+    setCopiedLabel(label);
+    setTimeout(() => setCopiedLabel(null), 2000);
+  };
 
   const Metric = ({ label, value }) => (
     <div style={{ background: "#111318", padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -372,6 +381,13 @@ function PoolSidebar({ data, loading, chain }) {
               <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#111318", padding: "3px 8px", borderRadius: 6, border: `1px solid ${C.border}` }}>
                 <span style={{ fontSize: 10, color: "#fff", fontFamily: "monospace" }}>{item.addr?.slice(0, 6)}...{item.addr?.slice(-4)}</span>
                 <div style={{ width: 1, height: 10, background: C.border }} />
+                <div
+                  onClick={() => handleCopy(item.addr, item.label)}
+                  style={{ cursor: "pointer", color: copiedLabel === item.label ? C.green : C.dim, display: "flex", alignItems: "center" }}
+                >
+                  {copiedLabel === item.label ? <Check size={10} /> : <Copy size={10} />}
+                </div>
+                <div style={{ width: 1, height: 10, background: C.border }} />
                 <a href={`${ADDRESS_EXPLORERS[chain] || "https://etherscan.io/address/"}${item.addr}`} target="_blank" rel="noreferrer" style={{ color: C.dim }}><ExternalLink size={10} /></a>
               </div>
             </div>
@@ -472,7 +488,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           {/* Chart Section - Clipped to hide branding */}
           <div style={{
-            background: C.card, border: `1px solid ${C.border}`, borderRadius: 16,
+            background: C.card, border: `1px solid ${C.border}`, borderRadius: 12,
             height: 500, overflow: "hidden", position: "relative"
           }}>
             <iframe
@@ -492,21 +508,21 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
             />
           </div>
 
-          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: "24px", position: "relative", minHeight: 600 }}>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px", position: "relative", minHeight: 600 }}>
             {loading && <ChartLoader />}
 
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#1c1e22", borderBottom: `1px solid ${C.border}` }}>
-                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>Time</th>
-                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>Type</th>
-                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>USD Value</th>
-                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>{baseSymbol}</th>
-                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>{quoteSymbol}</th>
-                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>Price</th>
-                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>Trader</th>
-                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "12px 16px", textTransform: "uppercase" }}>TXN</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "8px 12px", textTransform: "uppercase" }}>Time</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "8px 12px", textTransform: "uppercase" }}>Type</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "8px 12px", textTransform: "uppercase" }}>USD Value</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "8px 12px", textTransform: "uppercase" }}>{baseSymbol}</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "8px 12px", textTransform: "uppercase" }}>{quoteSymbol}</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "8px 12px", textTransform: "uppercase" }}>Price</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "8px 12px", textTransform: "uppercase" }}>Trader</th>
+                    <th style={{ textAlign: "left", fontSize: 10, color: C.muted, fontWeight: 800, padding: "8px 12px", textTransform: "uppercase" }}>TXN</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -531,25 +547,25 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
                       transition: "background 0.5s",
                       background: updatedIds.has(s.id) ? "rgba(59, 130, 246, 0.15)" : "transparent"
                     }}>
-                      <td style={{ padding: "12px 16px", fontSize: 12, color: C.muted }}>{getAge(s.timestamp)}</td>
-                      <td style={{ padding: "12px 16px" }}>
+                      <td style={{ padding: "8px 12px", fontSize: 11, color: C.muted }}>{getAge(s.timestamp)}</td>
+                      <td style={{ padding: "8px 12px" }}>
                         <span style={{
-                          fontSize: 10, fontWeight: 900, padding: "2px 8px", borderRadius: 4,
+                          fontSize: 9, fontWeight: 900, padding: "1px 6px", borderRadius: 4,
                           background: s.side === "BUY" ? C.green + "20" : C.red + "20",
                           color: s.side === "BUY" ? C.green : C.red
                         }}>{s.side}</span>
                       </td>
-                      <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 800, color: s.side === "BUY" ? C.green : C.red }}>{fmt(s.usd_value)}</td>
-                      <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: s.side === "BUY" ? C.green : C.red }}>
+                      <td style={{ padding: "8px 12px", fontSize: 12, fontWeight: 800, color: s.side === "BUY" ? C.green : C.red }}>{fmt(s.usd_value)}</td>
+                      <td style={{ padding: "8px 12px", fontSize: 12, fontWeight: 700, color: s.side === "BUY" ? C.green : C.red }}>
                         {fmtNum(s.amount_base)}
                       </td>
-                      <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: s.side === "BUY" ? C.green : C.red }}>
+                      <td style={{ padding: "8px 12px", fontSize: 12, fontWeight: 700, color: s.side === "BUY" ? C.green : C.red }}>
                         {fmtNum(s.amount_quote)}
                       </td>
-                      <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: s.side === "BUY" ? C.green : C.red }}>
+                      <td style={{ padding: "8px 12px", fontSize: 12, fontWeight: 700, color: s.side === "BUY" ? C.green : C.red }}>
                         <PriceValue val={s.price} />
                       </td>
-                      <td style={{ padding: "12px 16px" }}>
+                      <td style={{ padding: "8px 12px" }}>
                         <a
                           href={`${ADDRESS_EXPLORERS[pool.chain] || "https://etherscan.io/address/"}${s.tx_from}`}
                           target="_blank"
@@ -561,7 +577,7 @@ function PoolDetails({ pool, onBack, onPoolClick }) {
                           {s.tx_from.slice(0, 6)}...{s.tx_from.slice(-4)}
                         </a>
                       </td>
-                      <td style={{ padding: "12px 16px" }}>
+                      <td style={{ padding: "8px 12px" }}>
                         <a
                           href={`${EXPLORERS[pool.chain] || "https://etherscan.io/tx/"}${s.tx_hash}`}
                           target="_blank"
@@ -759,7 +775,7 @@ function Overview({ alphaMetrics, loading, isGlobalView, updatedPools, onPoolCli
         <TrendingTicker items={trendingItems} onPoolClick={onPoolClick} chain={alphaMetrics?.[0]?.chain || "Ethereum"} />
       )}
       {/* Intelligence Section */}
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: "24px 32px", position: "relative", minHeight: 600 }}>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 20px", position: "relative", minHeight: 600 }}>
         {loading && <ChartLoader />}
         {!loading && (!alphaMetrics || alphaMetrics.length === 0) && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 400, color: C.muted }}>
@@ -771,8 +787,8 @@ function Overview({ alphaMetrics, loading, isGlobalView, updatedPools, onPoolCli
         <Watermark />
 
         {/* Timeframe Switcher (Shortcuts) */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", background: "#111318", borderRadius: 8, padding: "3px 4px", border: `1px solid ${C.border}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", background: "#111318", borderRadius: 6, padding: "2px 4px", border: `1px solid ${C.border}` }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: C.uni, padding: "0 12px", display: "flex", alignItems: "center", gap: 6 }}>
               🔥 Trending
             </span>
@@ -812,16 +828,16 @@ function Overview({ alphaMetrics, loading, isGlobalView, updatedPools, onPoolCli
                       key={h.key}
                       onClick={() => toggleSort(h.key)}
                       style={{
-                        textAlign: "left", fontSize: 12, color: isActive ? C.uni : "#fff",
-                        fontWeight: 800, padding: "12px 16px", textTransform: "uppercase",
+                        textAlign: "left", fontSize: 10, color: isActive ? C.uni : "#fff",
+                        fontWeight: 800, padding: "8px 12px", textTransform: "uppercase",
                         letterSpacing: "0.05em", cursor: "pointer", userSelect: "none",
                         position: "relative"
                       }}
                     >
                       <div style={{ display: "flex", alignItems: "center" }}>
-                        <span style={{ marginRight: 16 }}>{h.label}</span>
+                        <span style={{ marginRight: 12 }}>{h.label}</span>
                         {isActive && (
-                          <span style={{ fontSize: 12, position: "absolute", right: 8 }}>{sortConfig.dir === "desc" ? "↓" : "↑"}</span>
+                          <span style={{ fontSize: 10, position: "absolute", right: 8 }}>{sortConfig.dir === "desc" ? "↓" : "↑"}</span>
                         )}
                       </div>
                     </th>
@@ -1393,11 +1409,34 @@ export default function App() {
   const [protoLoading, setProtoLoading] = useState(false);
 
   // ... rest of search states ...
-  const [searchVal, setSearchVal] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showResults, setShowResults] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [history, setHistory] = useState(() => {
+    const saved = localStorage.getItem("search_history");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const addToHistory = (pool) => {
+    const newHist = [pool, ...history.filter(h => h.pool_address !== pool.pool_address)].slice(0, 10);
+    setHistory(newHist);
+    localStorage.setItem("search_history", JSON.stringify(newHist));
+  };
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setShowModal(true);
+      }
+      if (e.key === "Escape") {
+        setShowModal(false);
+        setSearchQuery("");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const [wsStatus, setWsStatus] = useState("connecting"); // connecting, open, closed
   const [updatedPools, setUpdatedPools] = useState(new Set());
@@ -1546,16 +1585,7 @@ export default function App() {
   const isProto = view !== "overview";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: C.bg, fontFamily: "'Outfit', sans-serif", color: C.text, overflow: "hidden" }}>
-      <SearchIntelligenceModal
-        query={searchVal}
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        onSelect={(item) => {
-          setShowModal(false);
-          handleSearchResultClick(item);
-        }}
-      />
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "#000", fontFamily: "'Outfit', sans-serif", color: C.text, overflow: "hidden" }}>
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
         <aside
           onMouseEnter={() => setIsHovered(true)}
@@ -1575,9 +1605,9 @@ export default function App() {
             position: "relative"
           }}>
           <div style={{
-            padding: "26px 20px", borderBottom: `1px solid ${C.border}`,
+            padding: "16px 16px", borderBottom: `1px solid ${C.border}`,
             display: "flex", alignItems: "center", position: "relative",
-            minHeight: 82, boxSizing: "border-box"
+            minHeight: 64, boxSizing: "border-box"
           }}>
             <div style={{
               display: "flex", alignItems: "center", gap: 10,
@@ -1626,15 +1656,39 @@ export default function App() {
             </button>
           </div>
           <nav style={{ padding: "24px 12px", flex: 1 }}>
+            {/* Search Trigger Section */}
+            <div style={{ marginBottom: 16 }}>
+              <button
+                onClick={() => setShowModal(true)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10, width: "100%", background: "#111318",
+                  border: `1px solid ${C.border}`, borderRadius: 8, padding: isEffectiveCollapsed ? "10px 0" : "8px 12px",
+                  cursor: "pointer", color: C.muted, fontSize: 12, fontFamily: "inherit",
+                  transition: "all 0.2s ease", justifyContent: isEffectiveCollapsed ? "center" : "flex-start",
+                  boxShadow: "inset 0 1px 2px rgba(0,0,0,0.4)"
+                }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = C.uni}
+                onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
+              >
+                <Search size={16} color={C.dim} strokeWidth={2.5} />
+                {!isEffectiveCollapsed && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", opacity: 0.7 }}>
+                    <span>Search</span>
+                    <span style={{ fontSize: 9, background: C.border, padding: "2px 5px", borderRadius: 4, fontWeight: 800 }}>CTRL K</span>
+                  </div>
+                )}
+              </button>
+            </div>
+
             <button onClick={() => setView("overview")}
               style={{
-                display: "flex", alignItems: "center", gap: 12, width: "100%", background: view === "overview" ? "#ffffff10" : "transparent",
+                display: "flex", alignItems: "center", gap: 10, width: "100%", background: view === "overview" ? "#ffffff10" : "transparent",
                 border: view === "overview" ? `1px solid ${C.borderHi}` : "1px solid transparent",
-                borderRadius: 10, padding: isEffectiveCollapsed ? "12px 0" : "12px 14px", cursor: "pointer", color: view === "overview" ? "#fff" : C.muted,
-                fontSize: 14, fontFamily: "inherit", marginBottom: 20, transition: "all 0.25s ease", fontWeight: view === "overview" ? 600 : 500,
+                borderRadius: 8, padding: isEffectiveCollapsed ? "10px 0" : "10px 12px", cursor: "pointer", color: view === "overview" ? "#fff" : C.muted,
+                fontSize: 13, fontFamily: "inherit", marginBottom: 16, transition: "all 0.25s ease", fontWeight: view === "overview" ? 600 : 500,
                 justifyContent: isEffectiveCollapsed ? "center" : "flex-start"
               }}>
-              <BarChart3 size={18} strokeWidth={view === "overview" ? 2.5 : 2} color={view === "overview" ? C.uni : C.dim} />
+              <BarChart3 size={16} strokeWidth={view === "overview" ? 2.5 : 2} color={view === "overview" ? C.uni : C.dim} />
               {!isEffectiveCollapsed && <span>Overview</span>}
             </button>
 
@@ -1645,10 +1699,10 @@ export default function App() {
               return (
                 <button key={item.id} onClick={() => setView(item.id)}
                   style={{
-                    display: "flex", alignItems: "center", gap: 12, width: "100%", background: active ? "#ffffff10" : "transparent",
+                    display: "flex", alignItems: "center", gap: 10, width: "100%", background: active ? "#ffffff10" : "transparent",
                     border: active ? `1px solid ${C.borderHi}` : "1px solid transparent",
-                    borderRadius: 10, padding: isEffectiveCollapsed ? "12px 0" : "12px 14px", cursor: "pointer", color: active ? "#fff" : C.muted,
-                    fontSize: 14, fontFamily: "inherit", marginBottom: 6, transition: "all 0.15s ease", fontWeight: active ? 600 : 500,
+                    borderRadius: 8, padding: isEffectiveCollapsed ? "10px 0" : "10px 12px", cursor: "pointer", color: active ? "#fff" : C.muted,
+                    fontSize: 13, fontFamily: "inherit", marginBottom: 4, transition: "all 0.15s ease", fontWeight: active ? 600 : 500,
                     justifyContent: isEffectiveCollapsed ? "center" : "flex-start"
                   }}>
                   {item.logo ? (
@@ -1691,7 +1745,7 @@ export default function App() {
 
         <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: "#000000", overflow: "hidden" }}>
           <header style={{
-            padding: "20px 32px", borderBottom: `1px solid ${C.border}`,
+            padding: "14px 24px", borderBottom: `1px solid ${C.border}`,
             display: "flex", alignItems: "center", justifyContent: "space-between",
             background: "#000000", position: "sticky", top: 0, zIndex: 10,
           }}>
@@ -1703,7 +1757,7 @@ export default function App() {
             </div>
           </header>
 
-          <div style={{ padding: "32px", flex: 1, overflowY: "auto" }}>
+          <div style={{ padding: "20px 24px", flex: 1, overflowY: "auto" }}>
 
             {(() => {
               const viewLow = view.toLowerCase();
@@ -1747,6 +1801,328 @@ export default function App() {
             })()}
           </div>
         </main>
+      </div>
+
+      {/* SEARCH MODAL */}
+      {showModal && (
+        <DexSearchModal
+          onClose={() => {
+            setShowModal(false);
+            setSearchQuery("");
+          }}
+          alphaMetrics={alphaMetrics || []}
+          history={history}
+          onPoolClick={(p) => {
+            const addr = p.pool_address || p.id;
+            const chain = p.chain || p.chain_name || "Ethereum";
+            if (addr) setSelectedPool({ pool_address: addr, chain });
+            addToHistory(p);
+            setView("pool");
+            setShowModal(false);
+            setSearchQuery("");
+          }}
+          onClearHistory={() => {
+            setHistory([]);
+            localStorage.removeItem("search_history");
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function DexSearchModal({ onClose, alphaMetrics = [], history = [], onPoolClick, onClearHistory }) {
+  const [query, setQuery] = useState("");
+  const [apiResults, setApiResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [activeTab, setActiveTab] = useState("Top");
+  const [discovery, setDiscovery] = useState({ latest: [], top: [] });
+  const [discoveryLoading, setDiscoveryLoading] = useState(true);
+
+  // Fetch Discovery Data (Latest/Top) from unified search endpoint
+  useEffect(() => {
+    setDiscoveryLoading(true);
+    axios.get(`${API_BASE_URL}/api/v1/search/`)
+      .then(res => {
+        setDiscovery(res.data);
+        setDiscoveryLoading(false);
+      })
+      .catch(() => setDiscoveryLoading(false));
+  }, []);
+
+  // Search Fetching (Debounced API)
+  useEffect(() => {
+    if (!query || query.length < 2) {
+      setApiResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setIsSearching(true);
+      axios.get(`${API_BASE_URL}/api/v1/search/?q=${query}`)
+        .then(res => {
+          setApiResults(res.data.results || []);
+          setIsSearching(false);
+        })
+        .catch(() => {
+          setIsSearching(false);
+          setApiResults([]);
+        });
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  return (
+    <div style={{
+      position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+      background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)",
+      zIndex: 2000, display: "flex", justifyContent: "center", padding: "100px 20px"
+    }} onClick={onClose}>
+      <div
+        style={{
+          width: "100%", maxWidth: 820, background: "rgba(10, 11, 15, 0.85)", backdropFilter: "blur(30px)",
+          border: `1px solid ${C.borderHi}`,
+          borderRadius: 16, boxShadow: "0 40px 100px rgba(0,0,0,0.8)",
+          display: "flex", flexDirection: "column", overflow: "hidden", height: "fit-content",
+          maxHeight: "620px"
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Search Header */}
+        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 12 }}>
+          <Search size={20} color={C.uni} strokeWidth={3} />
+          <input
+            autoFocus
+            placeholder="Search by token address,Pair address,Symbol"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            style={{
+              flex: 1, background: "transparent", border: "none", outline: "none",
+              color: "#fff", fontSize: 18, fontWeight: 600, fontFamily: "inherit"
+            }}
+          />
+          <button
+            onClick={onClose}
+            style={{
+              background: "#1c1e22", border: `1px solid ${C.border}`, color: "#fff",
+              padding: "6px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer"
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+
+        <div style={{ overflowY: "auto", padding: "16px 0" }}>
+          {!query ? (
+            <>
+              {/* History Row */}
+              <div style={{ padding: "0 20px 20px" }}>
+                <div style={{ fontSize: 10, fontWeight: 900, color: C.muted, textTransform: "uppercase", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Clock size={12} /> History
+                </div>
+                <div style={{ display: "flex", gap: 8, overflowX: "auto" }} className="no-scrollbar">
+                  {history.length > 0 ? history.map((m, i) => (
+                    <div key={i} onClick={() => onPoolClick(m)} style={{ background: "#111318", border: `1px solid ${C.border}`, padding: "6px 12px", borderRadius: 6, fontSize: 11, fontWeight: 700, color: "#fff", cursor: "pointer", whiteSpace: "nowrap" }}>
+                      {m.base_token_symbol}
+                    </div>
+                  )) : (
+                    <div style={{ fontSize: 11, color: C.dim }}>No search history</div>
+                  )}
+                  {history.length > 0 && (
+                    <div onClick={onClearHistory} style={{ padding: "6px 12px", color: C.dim, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Clear</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Tabs Section */}
+              <div style={{ padding: "0 20px 24px", display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ display: "flex", background: "#111318", borderRadius: 8, padding: 3, gap: 4 }}>
+                  {["Latest", "Top"].map(t => (
+                    <div
+                      key={t}
+                      onClick={() => setActiveTab(t)}
+                      style={{
+                        padding: "6px 16px", borderRadius: 6,
+                        background: t === activeTab ? "#1c1e22" : "transparent",
+                        fontSize: 12, fontWeight: 800,
+                        color: t === activeTab ? "#fff" : C.muted,
+                        cursor: "pointer", transition: "all 0.2s"
+                      }}
+                    >
+                      {t}
+                    </div>
+                  ))}
+                </div>
+                {discoveryLoading && (
+                  <div style={{ width: 14, height: 14, border: `2px solid ${C.uni}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                )}
+              </div>
+
+              {/* Discovery Grid (Latest/Top) */}
+              <div style={{ padding: "0 20px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {(activeTab === "Top" ? discovery.top : discovery.latest).slice(0, 6).map((m, i) => {
+                    const pct24 = m.pct_change_24h || 0;
+                    const pct6h = m.pct_change_6h || 0;
+                    const pct1h = m.pct_change_1h || 0;
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => onPoolClick(m)}
+                        style={{ 
+                          background: "#0a0b0f", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 14px", 
+                          display: "flex", alignItems: "center", gap: 16, cursor: "pointer", transition: "all 0.2s",
+                          position: "relative", overflow: "hidden"
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = C.uni}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
+                      >
+                        {/* Left: Chain & Token */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 170 }}>
+                          <div style={{ position: "relative" }}>
+                             <div style={{ width: 34, height: 34, borderRadius: 6, background: "#111318", border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 900 }}>
+                               {m.base_token_symbol?.[0] || "?"}
+                             </div>
+                             <img 
+                               src={NAV.find(c => c.label === m.chain_name)?.logo} 
+                               style={{ width: 14, height: 14, borderRadius: "50%", position: "absolute", bottom: -2, right: -2, border: "2px solid #0a0b0f" }} 
+                               alt="chain"
+                             />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 900, color: "#fff", display: "flex", alignItems: "center", gap: 0 }}>
+                              {m.base_token_symbol}
+                              <span style={{ color: C.dim, fontWeight: 500 }}>&nbsp;/&nbsp;{m.pair?.split("-")[1] || m.pair?.split("/")[1] || "???"}</span>
+                              <span style={{ marginLeft: 8 }}>{m.base_token_symbol}</span>
+                            </div>
+                            <div style={{ fontSize: 9, color: C.muted }}>{m.chain_name}</div>
+                          </div>
+                        </div>
+
+                        {/* Middle: Metrics Row */}
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                              <div style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}>$<PriceValue val={m.price} /></div>
+                              <div style={{ display: "flex", gap: 10, fontSize: 10, fontWeight: 800 }}>
+                                 <span style={{ color: C.dim }}>1H <span style={{ color: pct1h >= 0 ? C.green : C.red, marginLeft: 2 }}>{pct1h >= 0 ? "+" : ""}{pct1h.toFixed(2)}%</span></span>
+                                 <span style={{ color: C.dim }}>6H <span style={{ color: pct6h >= 0 ? C.green : C.red, marginLeft: 2 }}>{pct6h >= 0 ? "+" : ""}{pct6h.toFixed(2)}%</span></span>
+                                 <span style={{ color: C.dim }}>24H <span style={{ color: pct24 >= 0 ? C.green : C.red, marginLeft: 2 }}>{pct24 >= 0 ? "+" : ""}{pct24.toFixed(2)}%</span></span>
+                              </div>
+                           </div>
+                           <div style={{ display: "flex", gap: 8 }}>
+                              <div style={{ background: "#111318", padding: "2px 8px", borderRadius: 4, fontSize: 10, color: C.muted, border: `1px solid ${C.border}` }}>
+                                 Vol: <span style={{ color: "#fff", fontWeight: 700 }}>{fmt(m.volume_24h)}</span>
+                              </div>
+                              <div style={{ background: "#111318", padding: "2px 8px", borderRadius: 4, fontSize: 10, color: C.muted, border: `1px solid ${C.border}` }}>
+                                 Age: <span style={{ color: "#fff", fontWeight: 700 }}>{m.created_at ? getAge(m.created_at).replace(" ago", "") : "--"}</span>
+                              </div>
+                           </div>
+                        </div>
+
+                        {/* Right: Addresses */}
+                        <div style={{ textAlign: "right", minWidth: 120 }}>
+                          <div style={{ fontSize: 10, color: C.dim, fontWeight: 800, marginBottom: 4 }}>
+                            PAIR: <span style={{ color: C.muted, fontFamily: "monospace" }}>{m.pool_address?.slice(0, 6)}...{m.pool_address?.slice(-4)}</span>
+                          </div>
+                          <div style={{ fontSize: 10, color: C.dim, fontWeight: 800 }}>
+                            TOKEN: <span style={{ color: C.muted, fontFamily: "monospace" }}>{m.base_token_address?.slice(0, 6)}...{m.base_token_address?.slice(-4)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          ) : (
+            /* SEARCH RESULTS */
+            <div style={{ padding: "0 20px", display: "flex", flexDirection: "column", gap: 8 }}>
+              {isSearching ? (
+                <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
+                  <div style={{ width: 24, height: 24, border: `2px solid ${C.uni}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                </div>
+              ) : apiResults.length > 0 ? (
+                apiResults.map((m, i) => {
+                  const pct24 = m.pct_change_24h || 0;
+                  const pct6h = m.pct_change_6h || 0;
+                  const pct1h = m.pct_change_1h || 0;
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => onPoolClick(m)}
+                      style={{ 
+                        background: "#0a0b0f", border: `1px solid ${C.border}`, borderRadius: 10, padding: "8px 14px", 
+                        display: "flex", alignItems: "center", gap: 16, cursor: "pointer", transition: "all 0.2s",
+                        position: "relative", overflow: "hidden"
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = C.uni}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
+                    >
+                      {/* Left: Identity */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 170 }}>
+                        <div style={{ position: "relative" }}>
+                           <div style={{ width: 34, height: 34, borderRadius: 6, background: "#111318", border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 900 }}>
+                             {m.base_token_symbol?.[0] || "?"}
+                           </div>
+                           <img 
+                             src={NAV.find(c => c.label === m.chain_name)?.logo} 
+                             style={{ width: 14, height: 14, borderRadius: "50%", position: "absolute", bottom: -2, right: -2, border: "2px solid #0a0b0f" }} 
+                             alt="chain"
+                           />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 900, color: "#fff", display: "flex", alignItems: "center", gap: 0 }}>
+                            {m.base_token_symbol}
+                            <span style={{ color: C.dim, fontWeight: 500 }}>&nbsp;/&nbsp;{m.pair?.split("-")[1] || m.pair?.split("/")[1] || "???"}</span>
+                            <span style={{ marginLeft: 8 }}>{m.base_token_symbol}</span>
+                          </div>
+                          <div style={{ fontSize: 9, color: C.muted }}>{m.chain_name}</div>
+                        </div>
+                      </div>
+
+                      {/* Middle: Performance */}
+                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+                         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                            <div style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}>$<PriceValue val={m.price} /></div>
+                            <div style={{ display: "flex", gap: 10, fontSize: 10, fontWeight: 800 }}>
+                               <span style={{ color: C.dim }}>1H <span style={{ color: pct1h >= 0 ? C.green : C.red, marginLeft: 2 }}>{pct1h >= 0 ? "+" : ""}{pct1h.toFixed(2)}%</span></span>
+                               <span style={{ color: C.dim }}>6H <span style={{ color: pct6h >= 0 ? C.green : C.red, marginLeft: 2 }}>{pct6h >= 0 ? "+" : ""}{pct6h.toFixed(2)}%</span></span>
+                               <span style={{ color: C.dim }}>24H <span style={{ color: pct24 >= 0 ? C.green : C.red, marginLeft: 2 }}>{pct24 >= 0 ? "+" : ""}{pct24.toFixed(2)}%</span></span>
+                            </div>
+                         </div>
+                         <div style={{ display: "flex", gap: 8 }}>
+                            <div style={{ background: "#111318", padding: "2px 8px", borderRadius: 4, fontSize: 10, color: C.muted, border: `1px solid ${C.border}` }}>
+                               Vol: <span style={{ color: "#fff", fontWeight: 700 }}>{fmt(m.volume_24h)}</span>
+                            </div>
+                            <div style={{ background: "#111318", padding: "2px 8px", borderRadius: 4, fontSize: 10, color: C.muted, border: `1px solid ${C.border}` }}>
+                               Age: <span style={{ color: "#fff", fontWeight: 700 }}>{m.created_at ? getAge(m.created_at).replace(" ago", "") : "--"}</span>
+                            </div>
+                         </div>
+                      </div>
+
+                      {/* Right: Address Shortcuts */}
+                      <div style={{ textAlign: "right", minWidth: 120 }}>
+                        <div style={{ fontSize: 10, color: C.dim, fontWeight: 800, marginBottom: 4 }}>
+                          PAIR: <span style={{ color: C.muted, fontFamily: "monospace" }}>{m.pool_address?.slice(0, 6)}...{m.pool_address?.slice(-4)}</span>
+                        </div>
+                        <div style={{ fontSize: 10, color: C.dim, fontWeight: 800 }}>
+                          TOKEN: <span style={{ color: C.muted, fontFamily: "monospace" }}>{m.base_token_address?.slice(0, 6)}...{m.base_token_address?.slice(-4)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ padding: "40px 0", textAlign: "center", color: C.muted }}>
+                  <Search size={32} style={{ opacity: 0.2, marginBottom: 12 }} />
+                  <div style={{ fontSize: 14 }}>No matches found for "{query}"</div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
