@@ -78,7 +78,7 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 def fetch_alpha_metrics_data(db: Session, chain_name: Optional[str] = None, limit: int = 50, offset: int = 0):
-    where_clauses = []
+    where_clauses = ["pct_change_6h IS NOT NULL", "pct_change_24h IS NOT NULL"]
     params = {"limit": limit, "offset": offset}
 
     if chain_name:
@@ -121,8 +121,6 @@ def fetch_alpha_metrics_data(db: Session, chain_name: Optional[str] = None, limi
             pct_change_24h
         FROM fct_dex_swaps
         {where_stmt}
-        and pct_change_6h IS NOT NULL
-        and pct_change_24h IS NOT NULL
         ORDER BY pct_change_24h DESC
         LIMIT :limit OFFSET :offset
     """)
