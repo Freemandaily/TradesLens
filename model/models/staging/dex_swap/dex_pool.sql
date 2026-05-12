@@ -20,6 +20,7 @@ with pools as (
 
 final as (
     select 
+        id,
         split_part(id, '-', 2) as pool_address,
         case 
             when id ilike '1-%' then 'Ethereum'
@@ -30,7 +31,7 @@ final as (
         token0_id,
         token1_id,
         "feeTier",
-        "createdAtTimestamp" as created_at_timestamp,
+        "createdAtTimestamp",
         to_timestamp("createdAtTimestamp") as pool_create_date,
         dex
     from pools
