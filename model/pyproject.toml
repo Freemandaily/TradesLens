@@ -6,6 +6,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "dbt-core>=1.11.7",
-    "dbt-postgres>=1.10.0",
+    "dbt-bigquery>=1.8.0",
     "requests>=2.33.0",
 ]

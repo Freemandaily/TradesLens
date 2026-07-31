@@ -13,4 +13,5 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "sqlalchemy>=2.0.49",
     "uvicorn[standard]>=0.44.0",
+    "google-cloud-bigquery>=3.29.0",
 ]

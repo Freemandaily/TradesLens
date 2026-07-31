@@ -3,7 +3,6 @@ import asyncio
 import datetime
 from typing import List, Optional, Dict, Tuple
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
-from sqlalchemy.orm import Session
 from sqlalchemy import text
 import urllib.request
 import json
@@ -28,7 +27,7 @@ info_cache = {}
 CACHE_TTL = datetime.timedelta(minutes=1)
 
 @router.get("/market-trending/{chain}")
-async def get_market_trending(chain: str, db: Session = Depends(get_db)):
+async def get_market_trending(chain: str, db = Depends(get_db)):
     """
     Fetch top pools by 24h volume from internal database (fct_dex_swaps).
     """
@@ -133,21 +132,24 @@ class PoolConnectionManager:
 
                     # Construct a query to fetch NEW swaps for only the active pools
                     # We check for swaps in the last 2 minutes as a safety buffer
-                    query = text("""
+                    # Build BigQuery-compatible pool filter using STRUCT
+                    # Example: STRUCT(chain_name, pool) IN UNNEST([STRUCT('Ethereum', '0xabc..'), ...])
+                    pool_structs = ", ".join(
+                        f"STRUCT('{k[0]}' AS chain_name, '{k[1]}' AS pool)"
+                        for k in active_keys
+                    )
+                    query = text(f"""
                         SELECT 
                             id, tx_hash, swap_timestamp, token_pool, 
                             base_token_symbol, quote_token_symbol,
                             side, base_asset_amount, quote_asset_amount,
-                            swap_price, "amountUSD", chain_name, pool, "txFrom"
+                            swap_price, amountUSD, chain_name, pool, txFrom
                         FROM fct_pool_swaps
-                        WHERE (chain_name, pool) IN :pool_list
-                        AND swap_timestamp > NOW() - INTERVAL '2 minutes'
+                        WHERE STRUCT(chain_name, pool) IN UNNEST([{pool_structs}])
+                        AND swap_timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 2 MINUTE)
                         ORDER BY swap_timestamp DESC
                     """)
-                    
-                    # Formatting active_keys for SQLAlchemy IN clause Tuple match
-                    params = {"pool_list": tuple(active_keys)}
-                    results = db.execute(query, params).all()
+                    results = db.execute(query).all()
                     
                     # Group results by pool for distribution
                     updates_per_pool = {}
@@ -170,7 +172,7 @@ class PoolConnectionManager:
                                 "amount_base": float(r.base_asset_amount),
                                 "amount_quote": float(r.quote_asset_amount),
                                 "price": float(r.swap_price),
-                                "usd_value": float(r.amountUSD),
+                                "usd_value": float(r.amountUSD) if r.amountUSD else 0.0,
                                 "tx_from": r.txFrom
                             })
 
@@ -203,7 +205,7 @@ def list_pool_swaps(
     chain: str,
     pool_address: str,
     limit: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db)
+    db = Depends(get_db)
 ):
     """Fetch trade history for a specific pool."""
     query = text("""
@@ -211,7 +213,7 @@ def list_pool_swaps(
             id, tx_hash, swap_timestamp, token_pool, 
             base_token_symbol, quote_token_symbol,
             side, base_asset_amount, quote_asset_amount,
-            swap_price, "amountUSD", "txFrom"
+            swap_price, amountUSD, txFrom
         FROM fct_pool_swaps
         WHERE chain_name = :chain AND pool = :pool
         ORDER BY swap_timestamp DESC
@@ -238,7 +240,7 @@ def list_pool_swaps(
             "amount_base": float(r.base_asset_amount),
             "amount_quote": float(r.quote_asset_amount),
             "price": float(r.swap_price),
-            "usd_value": float(r.amountUSD),
+            "usd_value": float(r.amountUSD) if r.amountUSD else 0.0,
             "tx_from": r.txFrom
         } for r in results
     ]

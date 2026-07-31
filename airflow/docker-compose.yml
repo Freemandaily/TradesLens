@@ -80,6 +80,7 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     - ${AIRFLOW_PROJ_DIR:-../model}:/opt/airflow/model
+    - ${AIRFLOW_PROJ_DIR:-../Indexers}:/opt/airflow/Indexers
   networks:
     - default
     # - local_test_network

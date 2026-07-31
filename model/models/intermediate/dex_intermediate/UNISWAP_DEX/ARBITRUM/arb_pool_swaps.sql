@@ -5,23 +5,23 @@
 }}
 
 with staged as (
-     select * from {{ ref('stg_dex_swaps') }}
-     where chain_name = 'Arbitrum'
-     and  dex = 'UniswapV3'
+      select * from {{ ref('stg_dex_swaps') }}
+      where chain_name = 'Arbitrum'
+      and  dex = 'UniswapV3'
 ),
 
 -- Join with Pool source to get the fee tier
 pools as (
     select 
         id as pool_id,
-        "feeTier"
+        feeTier
     from {{ source('dexSwap_v3', 'Pool') }}
 ),
 
 enriched as (
     select 
         s.*,
-        p."feeTier",
+        p.feeTier,
         s.token0_symbol || '-' || s.token1_symbol  as token_pool,
         -- Determine which token is the Quote using explicit contract addresses
         case 
@@ -67,7 +67,7 @@ enriched as (
             else s.token0_symbol
         end as quote_token_symbol
     from staged s
-    left join pools p on s.pool = split_part(p.pool_id, '-', 2)
+    left join pools p on s.pool = split(p.pool_id, '-')[safe_offset(1)]
 ),
 
 side_logic as (
@@ -89,29 +89,35 @@ side_logic as (
             else abs(amount0) 
         end as quote_asset_amount,
 
-        (abs("amountUSD") * coalesce("feeTier", 0) / 1000000) as swap_revenue
+        (abs(amountUSD) * coalesce(feeTier, 0) / 1000000) as swap_revenue
     from enriched
 ),
-
-
 
 final_tx as (
     select
         *,
         case 
-            when base_asset_amount > 0 then "amountUSD" / base_asset_amount
+            when base_asset_amount > 0 then amountUSD / base_asset_amount
             else 0 
         end as swap_price
     from side_logic
 ),
 
 -- Determine current price from the single latest swap per pool
-latest_prices as (
-    select distinct on (pool)
+latest_prices_ordered as (
+    select
         pool,
-        swap_price as current_price
+        swap_price as current_price,
+        row_number() over (partition by pool order by swap_timestamp desc) as rn
     from final_tx
-    order by pool, swap_timestamp desc
+),
+
+latest_prices as (
+    select
+        pool,
+        current_price
+    from latest_prices_ordered
+    where rn = 1
 )
 
 select 

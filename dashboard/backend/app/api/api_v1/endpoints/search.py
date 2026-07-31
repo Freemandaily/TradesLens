@@ -1,7 +1,6 @@
 import logging
 from typing import List, Optional, Any
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.core.database import get_db
 
@@ -12,7 +11,7 @@ router = APIRouter()
 @router.get("/")
 def universal_search(
     q: Optional[str] = Query(None, description="Search query (tx hash, address, or symbol)"),
-    db: Session = Depends(get_db)
+    db = Depends(get_db)
 ):
     """
     Unified Search & Discovery Service:
@@ -75,7 +74,6 @@ def universal_search(
         
         if is_hex and len(q) == 42:
             # Smart Address Search: Check if it's a Pool or a Token (bought/sold)
-            # This returns the pool detail fields requested
             addr_query = text("""
                 SELECT 
                     pool as pool_address,
@@ -101,6 +99,7 @@ def universal_search(
 
         # If not an address or no address matches found, try Symbol Search
         if not results:
+            # BigQuery does not support ILIKE; use LOWER() LIKE LOWER() instead
             token_query = text("""
                 SELECT 
                     pool as pool_address,
@@ -116,7 +115,7 @@ def universal_search(
                     pct_change_24h,
                     'token' as type
                 FROM fct_dex_swaps
-                WHERE base_token_symbol ILIKE :q 
+                WHERE LOWER(base_token_symbol) LIKE LOWER(:q)
                 ORDER BY volume_24h DESC
                 LIMIT 15
             """)
@@ -128,10 +127,6 @@ def universal_search(
             "count": len(results), 
             "results": results
         }
-
-    except Exception as e:
-        logger.error(f"UNIFIED SEARCH ERROR: {str(e)}", exc_info=True)
-        return {"error": str(e), "latest": [], "top": []}
 
     except Exception as e:
         logger.error(f"UNIFIED SEARCH ERROR: {str(e)}", exc_info=True)

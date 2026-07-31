@@ -2,7 +2,6 @@ import logging
 from typing import List, Optional
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.core.database import get_db
 
@@ -21,7 +20,7 @@ CHAIN_MAPPING = {
 router = APIRouter()
 
 @router.get("/overview/summary")
-def get_stats_summary(db: Session = Depends(get_db)):
+def get_stats_summary(db = Depends(get_db)):
     """
     Headline Stats (Summary):
     - Total Ecosystem Volume & Swaps (fct_dex_swaps)
@@ -34,7 +33,7 @@ def get_stats_summary(db: Session = Depends(get_db)):
         total_tvl = 0.0
 
         # 2. Global Swaps & Volume from fact table
-        swaps_query = text('SELECT COUNT(*), SUM("amountUSD") FROM fct_dex_swaps')
+        swaps_query = text('SELECT COUNT(*), SUM(amountUSD) FROM fct_dex_swaps')
         swaps_res = db.execute(swaps_query).first()
         total_swaps = swaps_res[0] or 0
         total_volume = swaps_res[1] or 0.0
@@ -43,7 +42,7 @@ def get_stats_summary(db: Session = Depends(get_db)):
         chain_vol_query = text('''
             SELECT 
                 chain_name, 
-                SUM("amountUSD") as volume 
+                SUM(amountUSD) as volume 
             FROM fct_dex_swaps 
             GROUP BY 1 
             ORDER BY volume DESC
@@ -56,7 +55,7 @@ def get_stats_summary(db: Session = Depends(get_db)):
         ]
 
         # 4. Volume per DEX
-        dex_vol_query = text('SELECT dex, SUM("amountUSD") as volume FROM fct_dex_swaps GROUP BY 1 ORDER BY volume DESC')
+        dex_vol_query = text('SELECT dex, SUM(amountUSD) as volume FROM fct_dex_swaps GROUP BY 1 ORDER BY volume DESC')
         dex_vols = db.execute(dex_vol_query).all()
 
         return {
@@ -75,7 +74,7 @@ def get_stats_summary(db: Session = Depends(get_db)):
 def get_stats_analytics(
     year: int = Query(2025, description="Year to analyze (e.g. 2025)"),
     month: Optional[int] = Query(None, ge=1, le=12, description="Optional month (1-12) to analyze deeper"),
-    db: Session = Depends(get_db)
+    db = Depends(get_db)
 ):
     """
     Deeper Insights (Analytics) with dynamic granularity:
@@ -87,16 +86,16 @@ def get_stats_analytics(
         # 1. Determine Filtering and Granularity logic
         if month:
             grouping = 'day'
-            where_clause = 'EXTRACT(YEAR FROM TO_TIMESTAMP("timestamp")) = :year AND EXTRACT(MONTH FROM TO_TIMESTAMP("timestamp")) = :month'
+            where_clause = 'EXTRACT(YEAR FROM swap_timestamp) = :year AND EXTRACT(MONTH FROM swap_timestamp) = :month'
         else:
             grouping = 'month'
-            where_clause = 'EXTRACT(YEAR FROM TO_TIMESTAMP("timestamp")) = :year'
+            where_clause = 'EXTRACT(YEAR FROM swap_timestamp) = :year'
 
         # 2. Volume Over Time Query
         time_series_query = text(f'''
             SELECT 
-                DATE_TRUNC('{grouping}', TO_TIMESTAMP("timestamp")) as period,
-                SUM("amountUSD") as volume,
+                TIMESTAMP_TRUNC(swap_timestamp, {grouping.upper()}) as period,
+                SUM(amountUSD) as volume,
                 COUNT(*) as swaps
             FROM fct_dex_swaps
             WHERE {where_clause}
@@ -110,7 +109,7 @@ def get_stats_analytics(
             SELECT 
                 LEAST(token_bought_symbol, token_sold_symbol) as t0,
                 GREATEST(token_bought_symbol, token_sold_symbol) as t1,
-                SUM("amountUSD") as volume,
+                SUM(amountUSD) as volume,
                 COUNT(*) as count
             FROM fct_dex_swaps
             WHERE {where_clause}
@@ -124,13 +123,13 @@ def get_stats_analytics(
         top_pairs_ts_query = text(f'''
             WITH period_ranks AS (
                 SELECT 
-                    DATE_TRUNC('{grouping}', TO_TIMESTAMP("timestamp")) as period,
+                    TIMESTAMP_TRUNC(swap_timestamp, {grouping.upper()}) as period,
                     LEAST(token_bought_symbol, token_sold_symbol) as t0,
                     GREATEST(token_bought_symbol, token_sold_symbol) as t1,
-                    SUM("amountUSD") as volume,
+                    SUM(amountUSD) as volume,
                     ROW_NUMBER() OVER(
-                        PARTITION BY DATE_TRUNC('{grouping}', TO_TIMESTAMP("timestamp")) 
-                        ORDER BY SUM("amountUSD") DESC
+                        PARTITION BY TIMESTAMP_TRUNC(swap_timestamp, {grouping.upper()}) 
+                        ORDER BY SUM(amountUSD) DESC
                     ) as rn
                 FROM fct_dex_swaps
                 WHERE {where_clause}
@@ -146,8 +145,8 @@ def get_stats_analytics(
         # 5. Peak Trading Hours Query
         peak_hours_query = text(f'''
             SELECT 
-                EXTRACT(HOUR FROM TO_TIMESTAMP("timestamp")) as hour,
-                SUM("amountUSD") as volume,
+                EXTRACT(HOUR FROM swap_timestamp) as hour,
+                SUM(amountUSD) as volume,
                 COUNT(*) as count
             FROM fct_dex_swaps
             WHERE {where_clause}

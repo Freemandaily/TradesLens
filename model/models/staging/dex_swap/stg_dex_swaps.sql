@@ -9,8 +9,8 @@ with swaps as (
     select * from {{ source('dexSwap_v3', 'Swap') }}
 
     {% if is_incremental() %}
-        where "timestamp" > (
-            select max("timestamp") - 7200 from {{ this }}
+        where timestamp > (
+            select max(timestamp) - 7200 from {{ this }}
         )
     {% endif %}
 
@@ -19,13 +19,13 @@ with swaps as (
 tokens as (
     select 
         case 
-            when id ilike '1-%' then 'Ethereum'
-            when id ilike '10-%' then 'Optimism'
-            when id ilike '42161-%' then 'Arbitrum'
+            when id like '1-%' then 'Ethereum'
+            when id like '10-%' then 'Optimism'
+            when id like '42161-%' then 'Arbitrum'
             else 'Unknown'
         end as chain_name,
 
-        split_part(id, '-', 2) as token_address,
+        split(id, '-')[safe_offset(1)] as token_address,
         symbol,
         name,
         decimals
@@ -38,30 +38,30 @@ staged as (
         id,
 
         -- Operational Metadata
-        to_timestamp("timestamp")                 as swap_timestamp,
-        "timestamp",
+        timestamp_seconds(cast(timestamp as int64))                 as swap_timestamp,
+        timestamp,
         transaction_id                                   as tx_hash,
         dex,
         
         case
-            when pool_id ilike '1-%' then 'Ethereum'
-            when pool_id ilike '10-%' then 'Optimism'
-            when pool_id ilike '42161-%' then 'Arbitrum'
+            when pool_id like '1-%' then 'Ethereum'
+            when pool_id like '10-%' then 'Optimism'
+            when pool_id like '42161-%' then 'Arbitrum'
             else 'Unknown'
         end as chain_name,
-        "gasPrice",
+        gasPrice,
         sender,
         recipient,
-        "txFrom",
-        -- Raw and normalized amounts
+        txFrom,
+        -- Raw and normalized  
         amount0,
         amount1,
-        "amountUSD",
-        split_part(token0_id, '-', 2) as token0,
-        split_part(token1_id, '-', 2) as token1,
-        split_part(pool_id, '-', 2) as pool,
+        amountUSD,
+        split(token0_id, '-')[safe_offset(1)] as token0,
+        split(token1_id, '-')[safe_offset(1)] as token1,
+        split(pool_id, '-')[safe_offset(1)] as pool,
         -- Price and tick data
-        "sqrtPriceX96",
+        sqrtPriceX96,
         tick
 
     from swaps
@@ -76,17 +76,17 @@ enriched_swaps as (
         tx_hash,
         dex,
         s.chain_name,
-        "gasPrice",
+        gasPrice,
         sender,
         recipient,
-        "txFrom",
+        txFrom,
         amount0,
         amount1,
-        "amountUSD",
+        amountUSD,
         token0,
         token1,
         pool,
-        "sqrtPriceX96",
+        sqrtPriceX96,
         tick,
         t0.symbol as token0_symbol,
         t0.name as token0_name,

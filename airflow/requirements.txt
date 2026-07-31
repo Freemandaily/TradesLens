@@ -1,4 +1,5 @@
-sqlalchemy
-dbt-postgres
+dbt-bigquery
 pydantic
 pydantic-settings
+google-cloud-bigquery
+pyspark

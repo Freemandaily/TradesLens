@@ -5,7 +5,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ mode }) => {
     // Load env vars from the current directory
     const env = loadEnv(mode, process.cwd(), '');
-    const target = env.VITE_API_TARGET || 'https://tradeslens.onrender.com';
+    // const target = env.VITE_API_TARGET || 'https://tradeslens.onrender.com';
+
+    const target = env.VITE_API_TARGET || 'http://dex_backend:8001';
 
     return {
         plugins: [react()],

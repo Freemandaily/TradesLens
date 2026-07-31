@@ -14,14 +14,14 @@ with staged as (
 pools as (
     select 
         id as pool_id,
-        "feeTier"
+        feeTier
     from {{ source('dexSwap_v3', 'Pool') }}
 ),
 
 enriched as (
     select 
         s.*,
-        p."feeTier",
+        p.feeTier,
         s.token0_symbol || '-' || s.token1_symbol  as token_pool,
         -- Determine which token is the Quote using explicit contract addresses for Optimism
         case 
@@ -58,7 +58,7 @@ enriched as (
             else s.token1_symbol
         end as base_token_symbol
     from staged s
-    left join pools p on s.pool = split_part(p.pool_id, '-', 2)
+    left join pools p on s.pool = split(p.pool_id, '-')[safe_offset(1)]
 ),
 
 side_logic as (
@@ -74,7 +74,7 @@ side_logic as (
             when quote_side = 'token1' then abs(amount0)
             else abs(amount1) 
         end as base_asset_amount,
-        (abs("amountUSD") * coalesce("feeTier", 0) / 1000000) as swap_revenue
+        (abs(amountUSD) * coalesce(feeTier, 0) / 1000000) as swap_revenue
     from enriched
 ),
 
@@ -83,19 +83,27 @@ final_tx as (
         *,
         -- Price (USD Value / Normalized Asset Amount)
         case 
-            when base_asset_amount > 0 then "amountUSD" / base_asset_amount
+            when base_asset_amount > 0 then amountUSD / base_asset_amount
             else 0 
         end as swap_price
     from side_logic
 ),
 
 -- Determine current price from the single latest swap per pool
-latest_prices as (
-    select distinct on (pool)
+latest_prices_ordered as (
+    select
         pool,
-        swap_price as current_price
+        swap_price as current_price,
+        row_number() over (partition by pool order by swap_timestamp desc) as rn
     from final_tx
-    order by pool, swap_timestamp desc
+),
+
+latest_prices as (
+    select
+        pool,
+        current_price
+    from latest_prices_ordered
+    where rn = 1
 ),
 
 agg_metrics as (
@@ -105,24 +113,24 @@ agg_metrics as (
         base_token_address,
         base_token_symbol,
         chain_name,
-        avg(abs("amountUSD")) as avg_swap_volume,
-        sum("amountUSD") as total_volume,
+        avg(abs(amountUSD)) as avg_swap_volume,
+        sum(amountUSD) as total_volume,
         
         -- Volume Windows
-        sum(case when swap_timestamp >= current_timestamp - interval '24 hours' then "amountUSD" else 0 end) as volume_24h,
-        sum(case when swap_timestamp >= current_timestamp - interval '3 days' then "amountUSD" else 0 end) as volume_3d,
-        sum(case when swap_timestamp >= current_timestamp - interval '7 days' then "amountUSD" else 0 end) as volume_7d,
+        sum(case when swap_timestamp >= timestamp_sub(current_timestamp(), interval 24 hour) then amountUSD else 0 end) as volume_24h,
+        sum(case when swap_timestamp >= timestamp_sub(current_timestamp(), interval 3 day) then amountUSD else 0 end) as volume_3d,
+        sum(case when swap_timestamp >= timestamp_sub(current_timestamp(), interval 7 day) then amountUSD else 0 end) as volume_7d,
 
         -- Buy/Sell volumes (5m, 10m, 24h)
-        sum(case when side = 'BUY' and swap_timestamp >= current_timestamp - interval '5 minutes' then "amountUSD" else 0 end) as total_buy_5m,
-        sum(case when side = 'SELL' and swap_timestamp >= current_timestamp - interval '5 minutes' then "amountUSD" else 0 end) as total_sell_5m,
-        sum(case when side = 'BUY' and swap_timestamp >= current_timestamp - interval '10 minutes' then "amountUSD" else 0 end) as total_buy_10m,
-        sum(case when side = 'SELL' and swap_timestamp >= current_timestamp - interval '10 minutes' then "amountUSD" else 0 end) as total_sell_10m,
-        sum(case when side = 'BUY' and swap_timestamp >= current_timestamp - interval '24 hours' then "amountUSD" else 0 end) as total_buy_24h,
-        sum(case when side = 'SELL' and swap_timestamp >= current_timestamp - interval '24 hours' then "amountUSD" else 0 end) as total_sell_24h,
+        sum(case when side = 'BUY' and swap_timestamp >= timestamp_sub(current_timestamp(), interval 5 minute) then amountUSD else 0 end) as total_buy_5m,
+        sum(case when side = 'SELL' and swap_timestamp >= timestamp_sub(current_timestamp(), interval 5 minute) then amountUSD else 0 end) as total_sell_5m,
+        sum(case when side = 'BUY' and swap_timestamp >= timestamp_sub(current_timestamp(), interval 10 minute) then amountUSD else 0 end) as total_buy_10m,
+        sum(case when side = 'SELL' and swap_timestamp >= timestamp_sub(current_timestamp(), interval 10 minute) then amountUSD else 0 end) as total_sell_10m,
+        sum(case when side = 'BUY' and swap_timestamp >= timestamp_sub(current_timestamp(), interval 24 hour) then amountUSD else 0 end) as total_buy_24h,
+        sum(case when side = 'SELL' and swap_timestamp >= timestamp_sub(current_timestamp(), interval 24 hour) then amountUSD else 0 end) as total_sell_24h,
 
         -- Revenue (based on feeTier)
-        sum(abs("amountUSD") * coalesce("feeTier", 0) / 1000000) as pool_revenue
+        sum(abs(amountUSD) * coalesce(feeTier, 0) / 1000000) as pool_revenue
 
     from final_tx
     group by 1, 2, 3, 4, 5

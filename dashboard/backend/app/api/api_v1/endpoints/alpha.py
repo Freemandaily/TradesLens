@@ -3,9 +3,8 @@ import asyncio
 import json
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
-from sqlalchemy.orm import Session
 from sqlalchemy import text
-from app.core.database import get_db, SessionLocal
+from app.core.database import get_db, BigQuerySession
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +50,10 @@ class ConnectionManager:
         try:
             while True:
                 if not self.active_connections:
-                    # Optional: Could stop the task if no one is watching
-                    # but keeping it running for "warm" first loads is fine
                     await asyncio.sleep(10)
                     continue
 
-                db = SessionLocal()
+                db = BigQuerySession()
                 try:
                     current_data = fetch_alpha_metrics_data(db, limit=100)
                     current_hash = hash(str(current_data))
@@ -77,7 +74,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-def fetch_alpha_metrics_data(db: Session, chain_name: Optional[str] = None, limit: int = 50, offset: int = 0):
+def fetch_alpha_metrics_data(db, chain_name: Optional[str] = None, limit: int = 50, offset: int = 0):
     where_clauses = ["pct_change_6h IS NOT NULL", "pct_change_24h IS NOT NULL"]
     params = {"limit": limit, "offset": offset}
 
@@ -170,7 +167,7 @@ def get_alpha_metrics(
     chain_name: Optional[str] = Query(None, description="Filter by blockchain (e.g. Arbitrum, Ethereum, Optimism)"),
     limit: int = Query(50, ge=1, le=2000),
     offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db)
+    db = Depends(get_db)
 ):
     """
     Get pool-level alpha metrics including 24h/3d/7d volumes and buy/sell pressure.

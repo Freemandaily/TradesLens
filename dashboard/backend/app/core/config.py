@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Optional
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings
 
@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     
     # DATABASE_URL derived or passed directly
     DATABASE_URL: str
+
+    # Google BigQuery Configurations
+    GCP_PROJECT_ID: str = "floci-local"
+    GCP_DATASET_ID: str = "my_dataset"
+    BIGQUERY_EMULATOR_HOST: Optional[str] = None
 
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []

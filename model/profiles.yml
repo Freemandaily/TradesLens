@@ -2,23 +2,17 @@ Dex:
   target: dev
   outputs:
     dev:
-      dbname: envio-dev
-      host: envio-postgres
-      pass: testing
-      port: 5432
-      schema: envio_dev
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: "{{ env_var('GCP_DATASET_ID') }}"
       threads: 4
-      type: postgres
-      user: postgres
-      # sslmode: disable
+      location: US
 
     prod:
-      dbname: "{{ env_var('PROD_DB_NAME') }}"
-      host: "{{ env_var('ENVIO_PG_HOST') }}"
-      pass: "{{ env_var('ENVIO_PG_PASSWORD') }}"
-      port: "{{ env_var('ENVIO_PG_PORT') | int }}"
-      schema: envio_prod
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('PROD_GCP_PROJECT_ID', env_var('GCP_PROJECT_ID')) }}"
+      dataset: "{{ env_var('PROD_GCP_DATASET_ID', env_var('GCP_DATASET_ID')) }}"
       threads: 4
-      type: postgres
-      user: "{{ env_var('ENVIO_PG_USER') }}"
-      sslmode: require
+      location: US
