@@ -1,0 +1,24 @@
+Starting indexer
+
+> generated@0.1.0 start
+> ts-node src/Index.res.js
+
+[13:13:32.235] INFO (56063): Found existing indexer storage. Resuming indexing state...
+
+[13:13:32.287] INFO (56063): Successfully resumed indexing state! Continuing from the last checkpoint.
+    progress: {
+      "1": -1,
+      "10": -1,
+      "42161": -1
+    }
+
+[UniswapV3] contractRegister called for pool 0x26866cdd574216886d5bf252cb66aa88aff2e9c0
+[UniswapV3] contractRegister called for pool 0xef1d9acb3b4b677d27a855856976e6faa020fa18
+[UniswapV3] contractRegister called for pool 0x874aca29cd2871f7df451684915600a65f40426c
+[UniswapV3] contractRegister called for pool 0x42596aec58772757c59f856a5a114cfba5d313f4
+[UniswapV3] contractRegister called for pool 0x1210fdd8411eb4edc2ada9f7e8ef7992b5b2b707
+[UniswapV3] contractRegister called for pool 0x09612ed3c6f14fa80d6bac63e1948805f200f5e5
+[UniswapV3] contractRegister called for pool 0x9518e5f71bee75c363061595101354137e0aff43
+[UniswapV3] contractRegister called for pool 0xbfec7a8b1e96b0879c40f5af2c72ca7914107be0
+[UniswapV3] contractRegister called for pool 0x0455a8268c16056b6ae5b75cde586eb3c627a069
+[UniswapV3] contractRegister called for pool 0xa21b26538fd15777f6e97bc7b0e02be486c72829

@@ -1,0 +1,5 @@
+Starting indexer
+
+> generated@0.1.0 start
+> ts-node src/Index.res.js
+
